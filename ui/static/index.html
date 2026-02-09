@@ -1,0 +1,181 @@
+<!-- index.html — browser interface for B4YC -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B4YC</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      color: #c8d6e5;
+      font-family: "Courier New", monospace;
+      font-size: 14px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #header {
+      padding: 10px 14px;
+      border-bottom: 1px solid #333;
+      color: #00ff88;
+      font-weight: bold;
+    }
+    #output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #inputRow {
+      display: flex;
+      align-items: center;
+      border-top: 1px solid #333;
+      padding: 8px 14px;
+    }
+    #prompt { color: #00ff88; margin-right: 8px; }
+    #input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #c8d6e5;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+    }
+    .green  { color: #00ff88; }
+    .red    { color: #ff4757; }
+    .yellow { color: #ffa502; }
+    .blue   { color: #3498db; }
+    .dim    { color: #636e72; }
+  </style>
+</head>
+<body>
+  <div id="header">B4YC - Before You Connect</div>
+  <div id="output"></div>
+  <div id="inputRow">
+    <span id="prompt">b4yc &gt;</span>
+    <input id="input" autofocus placeholder="Type a command (try: help)">
+  </div>
+<script>
+var outputEl = document.getElementById("output");
+var inputEl  = document.getElementById("input");
+
+function print(text, cls) {
+  var line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = text;
+  outputEl.appendChild(line);
+  outputEl.scrollTop = outputEl.scrollHeight;
+}
+
+async function api(endpoint) {
+  var res = await fetch(endpoint);
+  return await res.json();
+}
+
+async function runCommand(raw) {
+  var parts = raw.trim().split(/\s+/);
+  var cmd = (parts[0] || "").toLowerCase();
+  var arg = parts.slice(1).join(" ");
+  if (!cmd) return;
+
+  print("b4yc > " + raw, "dim");
+
+  if (cmd === "help") {
+    print("");
+    print("  Commands:", "blue");
+    print("  scan              See nearby Wi-Fi networks");
+    print("  ble               See nearby Bluetooth devices");
+    print("  anomalies         Check for anything suspicious");
+    print("  summary           Plain-English overview of your area");
+    print("  explain <name>    Learn more about a specific network");
+    print("  clear             Clear the screen");
+    print("  help              You're looking at it");
+    print("");
+    return;
+  }
+
+  if (cmd === "clear") { outputEl.innerHTML = ""; return; }
+
+  if (cmd === "scan") {
+    print("  Scanning for Wi-Fi networks...");
+
+    try {
+      var data = await api("/api/scan");
+      if (data.length === 0) { print("  No Wi-Fi networks found nearby."); return; }
+      print("");
+      data.forEach(function(n) {
+        var wps = n.wps ? " [WPS]" : "";
+        print("  " + (n.ssid || "(hidden)") + "  |  " + n.bssid + "  |  " + n.signal + "%  |  Ch " + n.channel + "  |  " + n.security + wps);
+      });
+      print("\n  " + data.length + " network(s) found.", "green");
+    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
+    return;
+  }
+
+  if (cmd === "ble") {
+    print("  Listening for Bluetooth devices...");
+    try {
+      var data = await api("/api/ble");
+      print("\n" + data.summary);
+    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
+    return;
+  }
+
+  if (cmd === "anomalies") {
+    print("  Checking for anomalies...");
+    try {
+      var data = await api("/api/anomalies");
+      if (data.anomalies.length === 0) {
+        print("\n  Nothing suspicious found. Looks good from here.", "green");
+        return;
+      }
+      print("");
+      data.anomalies.forEach(function(a) {
+        var cls = a.severity === "high" ? "red" : a.severity === "medium" ? "yellow" : "blue";
+        print("  [" + a.severity.toUpperCase() + "] " + a.message, cls);
+      });
+    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
+    return;
+  }
+
+  if (cmd === "summary") {
+    print("  Scanning and analyzing...");
+    try {
+      var data = await api("/api/summary");
+      print("\n" + data.summary);
+    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
+    return;
+  }
+
+  if (cmd === "explain") {
+    if (!arg) { print("  Which network? Example: explain CoffeeShopWifi"); return; }
+    print("  Looking up \"" + arg + "\"...");
+    try {
+      var data = await api("/api/explain?ssid=" + encodeURIComponent(arg));
+      print("\n" + data.explanation);
+    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
+    return;
+  }
+
+  print("  Don't know \"" + cmd + "\". Type \"help\" to see what's available.");
+}
+
+inputEl.addEventListener("keydown", function(e) {
+  if (e.key === "Enter") {
+    runCommand(inputEl.value);
+    inputEl.value = "";
+  }
+});
+
+print("  B4YC  v" + "0.1.0", "green");
+print("  Know what's around you before you go online.");
+print("");
+print("  Type \"help\" for commands.");
+print("");
+</script>
+</body>
+</html>
