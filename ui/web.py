@@ -16,6 +16,12 @@ staticDir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 class RequestHandler(BaseHTTPRequestHandler):
 
+    def handle(self):
+        try:
+            super().handle()
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
