@@ -242,9 +242,26 @@ def install_windows():
         warn("No Wi-Fi adapter found or Wi-Fi is disabled.")
         info("Enable Wi-Fi: Settings > Network & Internet > Wi-Fi")
 
+    # Check PowerShell version (need 5.1+ for WinRT BLE scanning)
+    title("Windows — PowerShell version")
+    ps_exe = "pwsh" if which("pwsh") else ("powershell" if which("powershell") else None)
+    if ps_exe:
+        ver_result = run_cmd([ps_exe, "-NoProfile", "-NonInteractive",
+                              "-Command", "$PSVersionTable.PSVersion.ToString()"])
+        ver_str = ver_result.stdout.strip()
+        try:
+            major = int(ver_str.split(".")[0])
+            if major >= 5:
+                ok(f"PowerShell {ver_str} — BLE scanning supported (Win10 1703+)")
+            else:
+                warn(f"PowerShell {ver_str} — BLE scanning needs PS 5.1+")
+                info("Update PowerShell: https://github.com/PowerShell/PowerShell/releases")
+        except (ValueError, IndexError):
+            warn(f"Could not parse PowerShell version: {ver_str!r}")
+    else:
+        err("PowerShell not found")
+
     print("\n  No pip packages required — B4YC uses Windows built-in tools only.")
-    print("\n  Note: Bluetooth (BLE) scanning is not supported on Windows.")
-    print("        Scan and anomaly detection work fully.")
 
     # Python launch tip
     print("\n  To start B4YC:")
