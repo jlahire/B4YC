@@ -31,6 +31,7 @@
       gap: 12px;
     }
     #header-version { color: #636e72; font-size: 12px; }
+    #header-os      { color: #3498db; font-size: 11px; }
 
     /* ── Tabs ── */
     #tab-bar {
@@ -98,6 +99,12 @@
       border-color: #3498db;
     }
     .btn-blue:hover { background: #3498db; color: #1a1a2e; }
+
+    .btn-dim {
+      color: #636e72;
+      border-color: #444;
+    }
+    .btn-dim:hover { background: #444; color: #c8d6e5; }
 
     .explain-row {
       display: flex;
@@ -175,6 +182,16 @@
       border-bottom: 1px solid #1a1a2e;
     }
     .log-table tr:hover td { background: #1e1e3a; }
+    .log-table tr.flagged-row td { background: #1e1218; }
+    .log-table tr.flagged-row:hover td { background: #2a1a22; }
+
+    /* ── SSID groups ── */
+    .group-header {
+      padding: 2px 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .group-members { margin-left: 14px; }
 
     /* ── Shared ── */
     .green  { color: #00ff88; }
@@ -238,6 +255,7 @@
   <div id="header">
     <span id="header-title">B4YC</span>
     <span id="header-version"></span>
+    <span id="header-os"></span>
     <span id="header-conn" style="margin-left:auto; font-size:12px;"></span>
   </div>
 
@@ -255,6 +273,8 @@
     <div class="pane active" id="pane-wifi">
       <div class="pane-toolbar">
         <button class="btn" id="btn-scan" onclick="doScan()">Scan Wi-Fi</button>
+        <button class="btn btn-dim" id="btn-expand-all"   onclick="expandAllDetails()"   style="display:none">Expand All</button>
+        <button class="btn btn-dim" id="btn-collapse-all" onclick="collapseAllDetails()" style="display:none">Collapse All</button>
         <span class="status-line" id="wifi-status"></span>
       </div>
       <div class="pane-output" id="wifi-output"></div>
@@ -295,6 +315,7 @@
     <div class="pane" id="pane-monitor">
       <div class="pane-toolbar">
         <button class="btn btn-blue" id="btn-monitor-toggle" onclick="toggleMonitor()">Stop Monitor</button>
+        <button class="btn btn-dim"  id="btn-export-log"     onclick="exportMonitorLog()">Export CSV</button>
         <span class="status-line" id="monitor-status">Live — updates every second</span>
       </div>
       <div id="monitor-live"></div>
@@ -320,65 +341,176 @@
   </div>
 
 <script>
-var bleScanSeconds = 10;
-var detailCounter  = 0;
+var bleScanSeconds     = 10;
+var detailCounter      = 0;
+var lastAnomalies      = [];   // populated by doAnomalies(); used to flag monitor log
+var lastMonitorEntries = [];   // latest log snapshot; used by exportMonitorLog()
 
 // ── OUI vendor table ───────────────────────────────────────────────────────
 var OUI = {
+  // Apple
   "001CB3":"Apple","002500":"Apple","341590":"Apple","3C15C2":"Apple",
   "406C8F":"Apple","585B6D":"Apple","705681":"Apple","7CD1C3":"Apple",
   "843835":"Apple","8C85C4":"Apple","A4D931":"Apple","ACCF5C":"Apple",
-  "B065BD":"Apple","D0034B":"Apple","F4F15A":"Apple",
+  "B065BD":"Apple","D0034B":"Apple","F4F15A":"Apple","3C2EFF":"Apple",
+  "0C4DE9":"Apple","788FCA":"Apple","F0DCE2":"Apple","78CA39":"Apple",
+  "8866A5":"Apple","B8FF61":"Apple","C82A14":"Apple","DC37CF":"Apple",
+  // TP-Link
   "001D0F":"TP-Link","14CF92":"TP-Link","1C3BF3":"TP-Link","2887BA":"TP-Link",
   "50C7BF":"TP-Link","54E6FC":"TP-Link","6032B1":"TP-Link","6466B3":"TP-Link",
   "6C5AB5":"TP-Link","A0F3C1":"TP-Link","AC1518":"TP-Link","B04E26":"TP-Link",
-  "C4E984":"TP-Link","D80D17":"TP-Link","DC4A9E":"TP-Link","EC086B":"TP-Link","F4F26D":"TP-Link",
+  "C4E984":"TP-Link","D80D17":"TP-Link","DC4A9E":"TP-Link","EC086B":"TP-Link",
+  "F4F26D":"TP-Link","50BD5F":"TP-Link","98DAC4":"TP-Link","C025E9":"TP-Link",
+  "30DE4B":"TP-Link","801F02":"TP-Link",
+  // Netgear
   "00095B":"Netgear","000FB5":"Netgear","00146C":"Netgear","001B2F":"Netgear",
   "001E2A":"Netgear","0026F2":"Netgear","1C1B0D":"Netgear","204E7F":"Netgear",
   "2CB05D":"Netgear","4494FC":"Netgear","6CB0CE":"Netgear","8C3BAD":"Netgear",
   "A021B7":"Netgear","B03956":"Netgear","E0469A":"Netgear","E4F4C6":"Netgear",
+  "C03F0E":"Netgear","9C3DCF":"Netgear","28C68E":"Netgear",
+  // ASUS
   "000C6E":"ASUS","0013D4":"ASUS","001A92":"ASUS","107B44":"ASUS",
   "1C872C":"ASUS","2CFDA1":"ASUS","40169F":"ASUS","60A44C":"ASUS",
   "708BCD":"ASUS","74D02B":"ASUS","7824AF":"ASUS","88D7F6":"ASUS",
-  "BCEEB7":"ASUS","D850E6":"ASUS","F46D04":"ASUS",
+  "BCEEB7":"ASUS","D850E6":"ASUS","F46D04":"ASUS","04D4C4":"ASUS",
+  "3025AB":"ASUS","50465D":"ASUS",
+  // D-Link
   "000D88":"D-Link","001195":"D-Link","0015E9":"D-Link","00179A":"D-Link",
   "001CF0":"D-Link","00265A":"D-Link","1C7EE5":"D-Link","28107B":"D-Link",
   "340804":"D-Link","44CCFE":"D-Link","6C198F":"D-Link","80AD16":"D-Link",
   "A0AB1B":"D-Link","B0C554":"D-Link","C0A0BB":"D-Link","F07D68":"D-Link",
+  "B8A386":"D-Link","90F652":"D-Link",
+  // Cisco / Meraki
   "00000C":"Cisco","00175A":"Cisco","001AA3":"Cisco","001C57":"Cisco",
   "002304":"Cisco","188B9D":"Cisco","2401C7":"Cisco","34DBF9":"Cisco",
-  "78BAF9":"Cisco","A09347":"Cisco","B4DEF1":"Cisco","CCD31E":"Cisco","DCF72C":"Cisco",
+  "78BAF9":"Cisco","A09347":"Cisco","B4DEF1":"Cisco","CCD31E":"Cisco",
+  "DCF72C":"Cisco","3C0E23":"Cisco","E06995":"Cisco","AC7E8A":"Cisco",
+  "0C75BD":"Meraki","7CB956":"Meraki","886BD4":"Meraki","0023AB":"Meraki",
+  // Ubiquiti
   "00156D":"Ubiquiti","002722":"Ubiquiti","0418D6":"Ubiquiti","24A43C":"Ubiquiti",
   "44D9E7":"Ubiquiti","687251":"Ubiquiti","78A200":"Ubiquiti","802AA8":"Ubiquiti",
   "B4FBE4":"Ubiquiti","DC9FDB":"Ubiquiti","E43883":"Ubiquiti","F09FC2":"Ubiquiti",
+  "1874B0":"Ubiquiti","FCECDA":"Ubiquiti",
+  // Google (Nest / Pixel / Home)
   "3C5AB4":"Google","546009":"Google","6CADF8":"Google","94EB2C":"Google",
-  "A47733":"Google","F4F5D8":"Google",
+  "A47733":"Google","F4F5D8":"Google","1CB72C":"Google","48A6B8":"Google",
+  "F88FCA":"Google","D4F57D":"Google","40E230":"Google",
+  // Amazon (Echo / Kindle / Fire / eero)
   "0C47C9":"Amazon","40B4CD":"Amazon","44650D":"Amazon","680971":"Amazon",
-  "74C246":"Amazon","A002DC":"Amazon","AC63BE":"Amazon","F0A731":"Amazon","FC65DE":"Amazon",
+  "74C246":"Amazon","A002DC":"Amazon","AC63BE":"Amazon","F0A731":"Amazon",
+  "FC65DE":"Amazon","34D270":"Amazon","4CBB58":"Amazon","84D6D0":"Amazon",
+  "F81A67":"Amazon","A0B1EE":"Amazon",
+  // Samsung
   "001247":"Samsung","001599":"Samsung","00166B":"Samsung","101DC0":"Samsung",
   "18227E":"Samsung","244B03":"Samsung","34145F":"Samsung","4C66A1":"Samsung",
   "5C2E59":"Samsung","70F927":"Samsung","84A466":"Samsung","8C77C6":"Samsung",
   "A084CB":"Samsung","B075D5":"Samsung","C4420C":"Samsung","D4E8B2":"Samsung",
-  "E4408C":"Samsung","F44228":"Samsung",
+  "E4408C":"Samsung","F44228":"Samsung","2C4412":"Samsung","001316":"Samsung",
+  "B47C9C":"Samsung","CC07AB":"Samsung",
+  // Huawei
   "001882":"Huawei","002568":"Huawei","04C06F":"Huawei","04FE8D":"Huawei",
   "101B54":"Huawei","14A51A":"Huawei","18CF5E":"Huawei","246945":"Huawei",
   "283152":"Huawei","34B354":"Huawei","485388":"Huawei","54EA68":"Huawei",
   "5CE8EB":"Huawei","70CF49":"Huawei","8C34FD":"Huawei","9CC172":"Huawei",
-  "A086C6":"Huawei","AC4E91":"Huawei","C8BE19":"Huawei","E019FD":"Huawei","F8980C":"Huawei",
+  "A086C6":"Huawei","AC4E91":"Huawei","C8BE19":"Huawei","E019FD":"Huawei",
+  "F8980C":"Huawei","7CBCB5":"Huawei","9C7DBA":"Huawei",
+  // Xiaomi / Mi
   "086986":"Xiaomi","10927C":"Xiaomi","14F65A":"Xiaomi","28E31F":"Xiaomi",
   "346094":"Xiaomi","38A4ED":"Xiaomi","50EC50":"Xiaomi","54499F":"Xiaomi",
   "64B473":"Xiaomi","742344":"Xiaomi","7851CE":"Xiaomi","9C9993":"Xiaomi",
   "A468BC":"Xiaomi","AC2376":"Xiaomi","B0E235":"Xiaomi","C8A788":"Xiaomi",
-  "CCA223":"Xiaomi","F02986":"Xiaomi","FC64BA":"Xiaomi",
+  "CCA223":"Xiaomi","F02986":"Xiaomi","FC64BA":"Xiaomi","8C8590":"Xiaomi",
+  // OnePlus
   "1C5766":"OnePlus","2CCC44":"OnePlus","946088":"OnePlus","AC7A4D":"OnePlus",
+  "7460B4":"OnePlus",
+  // Linksys
   "000C41":"Linksys","000F66":"Linksys","0014BF":"Linksys","001839":"Linksys",
   "001A70":"Linksys","202B20":"Linksys","48F8B3":"Linksys","586D8F":"Linksys",
+  // Aruba (HP Enterprise)
   "007E37":"Aruba","0C2757":"Aruba","18648E":"Aruba","20A6CD":"Aruba",
   "24DEC6":"Aruba","40E3D6":"Aruba","70A8E3":"Aruba","84D47E":"Aruba",
-  "94B40F":"Aruba","B0B8B5":"Aruba","C48E8F":"Aruba",
+  "94B40F":"Aruba","B0B8B5":"Aruba","C48E8F":"Aruba","9C8CD8":"Aruba",
+  // Intel (Wi-Fi adapters — usually laptops/PCs)
   "001CC0":"Intel","00219B":"Intel","0024D7":"Intel","4CAC0A":"Intel",
-  "606720":"Intel","6C8814":"Intel","9C4E36":"Intel","BC7739":"Intel","DC5360":"Intel",
+  "606720":"Intel","6C8814":"Intel","9C4E36":"Intel","BC7739":"Intel",
+  "DC5360":"Intel","A4C3F0":"Intel","3C6006":"Intel","F4060D":"Intel",
+  "8086F2":"Intel","34E12D":"Intel",
+  // Ralink / MediaTek (Wi-Fi adapters)
   "001869":"Ralink","0024B2":"Ralink","0090CC":"Ralink","7CF11E":"Ralink",
+  "00BB60":"Ralink",
+  // Realtek (Wi-Fi adapters)
+  "00E04C":"Realtek","00E0B4":"Realtek","E0CB4E":"Realtek","00265C":"Realtek",
+  "FC3497":"Realtek",
+  // Raspberry Pi Foundation
+  "B827EB":"Raspberry Pi","DCA632":"Raspberry Pi","E45F01":"Raspberry Pi",
+  // Mikrotik
+  "4C5E0C":"Mikrotik","64D154":"Mikrotik","CC2DE0":"Mikrotik","D4CA6D":"Mikrotik",
+  "18FD74":"Mikrotik",
+  // Motorola
+  "001A4B":"Motorola","00A0F8":"Motorola","AC37A3":"Motorola","BC9099":"Motorola",
+  "E4909B":"Motorola","FCF136":"Motorola",
+  // LG Electronics
+  "001E75":"LG","003067":"LG","14C913":"LG","30766F":"LG","A849EA":"LG",
+  "F8A963":"LG","CC2D8C":"LG",
+  // Sony
+  "001A80":"Sony","002354":"Sony","0024BE":"Sony","4432C8":"Sony","7066CF":"Sony",
+  "002AD2":"Sony","F8AFA3":"Sony",
+  // Nintendo
+  "002659":"Nintendo","00224C":"Nintendo","8CCDe8":"Nintendo","A4C0E1":"Nintendo",
+  "9822EF":"Nintendo","E84ECE":"Nintendo",
+  // Microsoft / Xbox / Surface
+  "0050F2":"Microsoft","28184D":"Microsoft","485073":"Microsoft","7045C4":"Microsoft",
+  "7CED8D":"Microsoft","98524B":"Microsoft","3C83A2":"Microsoft","A037E3":"Microsoft",
+  // HP Inc / HP Enterprise
+  "001083":"HP","3C4A92":"HP","9CB654":"HP","A0D3C1":"HP","58B035":"HP",
+  // Dell
+  "001D09":"Dell","001E4F":"Dell","002564":"Dell","18A99B":"Dell",
+  "5CF9DD":"Dell","F8B156":"Dell","B4826A":"Dell",
+  // Synology NAS
+  "001132":"Synology","0011320":"Synology","BC5FF4":"Synology",
+  // Palo Alto / Fortinet (enterprise security)
+  "001143":"Fortinet","002198":"Fortinet","A0F4C2":"Fortinet",
+  // VMware (virtual adapters)
+  "000C29":"VMware","000569":"VMware","001C14":"VMware","005056":"VMware",
+  // Qualcomm Atheros
+  "00037F":"Qualcomm","00224E":"Qualcomm","60A10A":"Qualcomm",
+};
+
+// ── OUI device-type hints ──────────────────────────────────────────────────
+// Used to give a one-line "this is probably a ___" note next to the vendor.
+var OUI_DEVICE_TYPE = {
+  "Apple":       "Apple Device (iPhone / Mac / AirPort)",
+  "TP-Link":     "Router / Access Point",
+  "Netgear":     "Router / Access Point",
+  "ASUS":        "Router / Access Point",
+  "D-Link":      "Router / Access Point",
+  "Cisco":       "Network Device",
+  "Meraki":      "Managed AP (Cisco Meraki)",
+  "Ubiquiti":    "Enterprise Access Point",
+  "Linksys":     "Router / Access Point",
+  "Aruba":       "Enterprise Access Point",
+  "Mikrotik":    "Router / Access Point",
+  "Google":      "Google Device (Nest / Pixel / Home)",
+  "Amazon":      "Amazon Device (Echo / Fire / eero)",
+  "Samsung":     "Samsung Device (Phone / TV / Tablet)",
+  "Huawei":      "Huawei Device (Phone / Router)",
+  "Xiaomi":      "Xiaomi Device (Phone / Router)",
+  "OnePlus":     "OnePlus Phone",
+  "Motorola":    "Motorola Phone",
+  "LG":          "LG Device (Phone / TV)",
+  "Sony":        "Sony Device (Phone / TV / PlayStation)",
+  "Nintendo":    "Nintendo Device (Switch / Wii)",
+  "Microsoft":   "Microsoft Device (Xbox / Surface / PC)",
+  "HP":          "HP Laptop / Printer",
+  "Dell":        "Dell Laptop / PC",
+  "Intel":       "PC / Laptop (Intel Wi-Fi adapter)",
+  "Ralink":      "PC / Laptop (MediaTek/Ralink adapter)",
+  "Realtek":     "PC / Laptop (Realtek adapter)",
+  "Raspberry Pi":"Raspberry Pi",
+  "Synology":    "Synology NAS",
+  "Fortinet":    "Fortinet Security Appliance",
+  "VMware":      "Virtual Machine (VMware adapter)",
+  "Qualcomm":    "Qualcomm Device",
 };
 
 // ── Tab switching ──────────────────────────────────────────────────────────
@@ -465,11 +597,11 @@ function signalQuality(pct) {
 
 function securityNote(sec) {
   var s = (sec || "").toLowerCase();
-  if (s === "open")         return ' <span class="red">— no encryption</span>';
-  if (s.includes("wep"))    return ' <span class="red">— broken, avoid</span>';
-  if (s.includes("wpa3"))   return ' <span class="green">— latest standard</span>';
-  if (s.includes("wpa2"))   return ' <span class="green">— current standard</span>';
-  if (s.includes("wpa"))    return ' <span class="yellow">— outdated</span>';
+  if (s === "open")            return ' <span class="red">— no encryption</span>';
+  if (s.indexOf("wep") >= 0)   return ' <span class="red">— broken, avoid</span>';
+  if (s.indexOf("wpa3") >= 0)  return ' <span class="green">— latest standard</span>';
+  if (s.indexOf("wpa2") >= 0)  return ' <span class="green">— current standard</span>';
+  if (s.indexOf("wpa") >= 0)   return ' <span class="yellow">— outdated</span>';
   return "";
 }
 
@@ -534,13 +666,18 @@ function formatRows(rows) {
 }
 
 function buildWifiDetails(n) {
-  var vendor = ouiLookup(n.bssid);
+  var vendor  = ouiLookup(n.bssid);
+  var devType = vendor ? (OUI_DEVICE_TYPE[vendor] || null) : null;
+
+  var vendorHtml = vendor
+    ? '<span class="green">' + escapeHtml(vendor) + "</span>" +
+      (devType ? ' <span class="dim">— ' + escapeHtml(devType) + "</span>" : "")
+    : '<span class="dim">Unknown — OUI ' + escapeHtml((n.bssid || "").substring(0, 8)) + "</span>";
+
   return formatRows([
     ["SSID",     escapeHtml(n.ssid || "(hidden)")],
     ["BSSID",    escapeHtml(n.bssid)],
-    ["Vendor",   vendor
-                   ? '<span class="green">' + escapeHtml(vendor) + "</span>"
-                   : '<span class="dim">Unknown — OUI ' + escapeHtml((n.bssid || "").substring(0, 8)) + "</span>"],
+    ["Vendor",   vendorHtml],
     ["Band",     escapeHtml(channelToBand(n.channel)) + ' <span class="dim">(Ch ' + escapeHtml(String(n.channel)) + ")</span>"],
     ["Signal",   n.signal + "% — " + signalQuality(n.signal)],
     ["Security", escapeHtml(n.security) + securityNote(n.security)],
@@ -555,15 +692,20 @@ function buildBleDetails(d) {
   var addrType = bleAddrType(d.address);
   var isPublic = addrType === "Public";
   var vendor   = isPublic ? ouiLookup(d.address) : null;
+  var devType  = vendor ? (OUI_DEVICE_TYPE[vendor] || null) : null;
+
+  var vendorHtml = isPublic
+    ? (vendor
+        ? '<span class="green">' + escapeHtml(vendor) + "</span>" +
+          (devType ? ' <span class="dim">— ' + escapeHtml(devType) + "</span>" : "")
+        : '<span class="dim">Unknown — OUI ' + escapeHtml((d.address || "").substring(0, 8)) + "</span>")
+    : '<span class="dim">N/A — not derivable from random address</span>';
+
   return formatRows([
     ["Name",      escapeHtml(d.name)],
     ["Address",   escapeHtml(d.address)],
     ["Addr type", escapeHtml(addrType) + (isPublic ? "" : ' <span class="dim">— MAC rotates to prevent tracking</span>')],
-    ["Vendor",    isPublic
-                   ? (vendor
-                       ? '<span class="green">' + escapeHtml(vendor) + "</span>"
-                       : '<span class="dim">Unknown — OUI ' + escapeHtml((d.address || "").substring(0, 8)) + "</span>")
-                   : '<span class="dim">N/A — not derivable from random address</span>'],
+    ["Vendor",    vendorHtml],
     ["Status",    tagNote(d.tag || "new")],
   ]);
 }
@@ -595,6 +737,86 @@ function printNetworkRow(container, n) {
     "  " + tag + detailBtn + connectBtn
   );
   appendPanel(container, pid, buildWifiDetails(n));
+}
+
+// ── SSID grouping ──────────────────────────────────────────────────────────
+
+function groupBySSID(networks) {
+  var order  = [];
+  var groups = {};
+  networks.forEach(function(n) {
+    var key = n.ssid || ("__hidden__" + n.bssid);
+    if (!groups[key]) { groups[key] = []; order.push(key); }
+    groups[key].push(n);
+  });
+  return order.map(function(k) { return { key: k, nets: groups[k] }; });
+}
+
+function uniqStrings(arr) {
+  var seen = {};
+  var out  = [];
+  arr.forEach(function(s) { if (!seen[s]) { seen[s] = true; out.push(s); } });
+  return out;
+}
+
+function printGroupedNetworks(container, networks) {
+  var groups = groupBySSID(networks);
+  groups.forEach(function(g) {
+    var nets = g.nets;
+
+    if (nets.length === 1) {
+      printNetworkRow(container, nets[0]);
+      return;
+    }
+
+    // Multiple APs sharing the same SSID — collapsible group
+    var ssid     = nets[0].ssid || "(hidden)";
+    var gid      = "g" + (detailCounter++);
+    var bestSig  = nets.reduce(function(m, n) { return Math.max(m, n.signal); }, 0);
+    var secTypes = uniqStrings(nets.map(function(n) { return n.security; }));
+    var anyWps   = nets.some(function(n) { return n.wps; });
+    var tag      = tagSpan(nets[0].tag || "new");
+    var wps      = anyWps ? ' <span class="yellow">[WPS]</span>' : "";
+    var bar      = signalBar(bestSig);
+    var toggle   = '<span class="blue detail-btn" data-panel="' + gid + '">[+]</span>';
+
+    appendHtml(container,
+      '<span class="group-header">' +
+      "  " + escapeHtml(ssid.substring(0, 26).padEnd(26)) +
+      '  <span class="dim">(' + nets.length + ' APs)</span>' +
+      "  " + bar + " " + String(bestSig).padStart(3) + "%" +
+      "  " + escapeHtml(secTypes.join("/")) + wps +
+      "  " + tag + "  " + toggle +
+      "</span>"
+    );
+
+    var membersEl = document.createElement("div");
+    membersEl.id = gid;
+    membersEl.className = "group-members";
+    membersEl.style.display = "none";
+    container.appendChild(membersEl);
+    nets.forEach(function(n) { printNetworkRow(membersEl, n); });
+  });
+}
+
+// ── Expand / Collapse all ──────────────────────────────────────────────────
+
+function expandAllDetails() {
+  document.querySelectorAll(".detail-panel, .group-members").forEach(function(p) {
+    p.style.display = "block";
+  });
+  document.querySelectorAll(".detail-btn").forEach(function(b) {
+    b.textContent = "[-]";
+  });
+}
+
+function collapseAllDetails() {
+  document.querySelectorAll(".detail-panel, .group-members").forEach(function(p) {
+    p.style.display = "none";
+  });
+  document.querySelectorAll(".detail-btn").forEach(function(b) {
+    b.textContent = "[+]";
+  });
 }
 
 function printBleRow(container, d) {
@@ -688,13 +910,21 @@ async function doScan() {
   clearOutput("wifi-output");
   setBusy("btn-scan", true);
   setStatus("wifi-status", "Scanning...");
+  document.getElementById("btn-expand-all").style.display   = "none";
+  document.getElementById("btn-collapse-all").style.display = "none";
   try {
     var data = await api("/api/scan");
     if (data.length === 0) {
       setStatus("wifi-status", "No Wi-Fi networks found.");
     } else {
-      data.forEach(function(n) { printNetworkRow(out, n); });
-      setStatus("wifi-status", data.length + " network(s) found.", "green");
+      printGroupedNetworks(out, data);
+      var groups     = groupBySSID(data);
+      var multiCount = groups.filter(function(g) { return g.nets.length > 1; }).length;
+      var msg = data.length + " network(s) found";
+      if (multiCount > 0) msg += ", " + multiCount + " SSID(s) with multiple APs";
+      setStatus("wifi-status", msg + ".", "green");
+      document.getElementById("btn-expand-all").style.display   = "";
+      document.getElementById("btn-collapse-all").style.display = "";
     }
   } catch(e) {
     setStatus("wifi-status", "Error: " + e.message, "red");
@@ -734,6 +964,7 @@ async function doAnomalies() {
   setStatus("anomalies-status", "Scanning...");
   try {
     var data = await api("/api/anomalies");
+    lastAnomalies = data.anomalies || [];   // cache for monitor flagging
     if (data.anomalies.length === 0) {
       appendHtml(out, '\n  <span class="green">Nothing suspicious found. Looks good from here.</span>');
       setStatus("anomalies-status", "All clear.", "green");
@@ -858,12 +1089,24 @@ async function updateMonitor() {
   } catch(e) { /* keep trying */ }
 }
 
+// Returns true when the SSID has a high-severity anomaly cached from last scan
+function isSsidFlagged(ssid) {
+  if (!ssid || lastAnomalies.length === 0) return false;
+  var lower = ssid.toLowerCase();
+  return lastAnomalies.some(function(a) {
+    return a.ssid && a.ssid.toLowerCase() === lower;
+  });
+}
+
 function renderMonitor(d, rxSpeed, txSpeed, rxTotal, txTotal) {
   var sep     = "  " + "\u2500".repeat(62);
+  var flagged = isSsidFlagged(d.ssid);
   var ssidStr = d.ssid
-    ? '<span class="green">' + escapeHtml(d.ssid) + "</span>"
+    ? (flagged
+        ? '<span class="red">' + escapeHtml(d.ssid) + ' \u26a0 FLAGGED</span>'
+        : '<span class="green">' + escapeHtml(d.ssid) + "</span>")
     : '<span class="dim">not connected</span>';
-  var ipStr   = d.ip
+  var ipStr = d.ip
     ? '<span class="green">' + escapeHtml(d.ip) + "</span>"
     : '<span class="dim">no IP assigned</span>';
 
@@ -915,6 +1158,7 @@ function stopLogPoller() {
 async function loadTrafficLog() {
   try {
     var data = await api("/api/traffic/log?limit=300");
+    lastMonitorEntries = data.entries || [];
     renderTrafficLog(data.entries, data.started_at);
   } catch(e) { /* silent */ }
 }
@@ -926,36 +1170,81 @@ function renderTrafficLog(entries, startedAt) {
     return;
   }
 
-  // Build header label
   var startStr = startedAt
     ? "since " + new Date(startedAt * 1000).toLocaleTimeString()
     : "";
   document.getElementById("monitor-log-header").textContent =
     "Traffic log — " + entries.length + " entries " + startStr;
 
-  // Show newest first
   var rows = entries.slice().reverse();
   var html = '<table class="log-table"><thead><tr>' +
-    '<th>Time</th><th>SSID</th><th>Download</th><th>Upload</th>' +
+    '<th>Time</th><th>SSID</th><th>Download</th><th>Upload</th><th>Flag</th>' +
     '</tr></thead><tbody>';
 
   rows.forEach(function(e) {
-    var t    = new Date(e.t * 1000).toLocaleTimeString();
-    var ssid = e.ssid
-      ? '<span class="green">' + escapeHtml(e.ssid) + '</span>'
-      : '<span class="dim">—</span>';
-    var rx   = e.rx_bps > 0
+    var t       = new Date(e.t * 1000).toLocaleTimeString();
+    var flagged = isSsidFlagged(e.ssid);
+    var ssid    = e.ssid
+      ? '<span class="' + (flagged ? "red" : "green") + '">' + escapeHtml(e.ssid) + '</span>'
+      : '<span class="dim">\u2014</span>';
+    var rx = e.rx_bps > 0
       ? '<span class="green">' + escapeHtml(fmtSpeed(e.rx_bps)) + '</span>'
-      : '<span class="dim">—</span>';
-    var tx   = e.tx_bps > 0
+      : '<span class="dim">\u2014</span>';
+    var tx = e.tx_bps > 0
       ? '<span class="yellow">' + escapeHtml(fmtSpeed(e.tx_bps)) + '</span>'
-      : '<span class="dim">—</span>';
-    html += '<tr><td class="dim">' + escapeHtml(t) + '</td><td>' + ssid +
-            '</td><td>' + rx + '</td><td>' + tx + '</td></tr>';
+      : '<span class="dim">\u2014</span>';
+    var flag = flagged
+      ? '<span class="red">\u26a0 anomaly</span>'
+      : '<span class="dim">\u2014</span>';
+    html += '<tr' + (flagged ? ' class="flagged-row"' : '') + '>' +
+            '<td class="dim">' + escapeHtml(t) + '</td>' +
+            '<td>' + ssid + '</td>' +
+            '<td>' + rx   + '</td>' +
+            '<td>' + tx   + '</td>' +
+            '<td>' + flag + '</td>' +
+            '</tr>';
   });
 
   html += '</tbody></table>';
   document.getElementById("monitor-log").innerHTML = html;
+}
+
+// ── Export monitor log as CSV ──────────────────────────────────────────────
+
+function exportMonitorLog() {
+  if (!lastMonitorEntries || lastMonitorEntries.length === 0) {
+    setStatus("monitor-status", "No log data to export yet.", "yellow");
+    return;
+  }
+
+  var lines = ["Time,SSID,Download_bps,Upload_bps,RX_Bytes,TX_Bytes,Flagged"];
+  lastMonitorEntries.slice().reverse().forEach(function(e) {
+    var t    = new Date(e.t * 1000).toLocaleString().replace(/,/g, " ");
+    var ssid = (e.ssid || "").replace(/"/g, '""');
+    lines.push([
+      '"' + t    + '"',
+      '"' + ssid + '"',
+      e.rx_bps,
+      e.tx_bps,
+      e.rx_bytes,
+      e.tx_bytes,
+      isSsidFlagged(e.ssid) ? "YES" : "",
+    ].join(","));
+  });
+
+  var csv  = lines.join("\r\n");
+  var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement("a");
+  a.href     = url;
+  a.download = "b4yc-monitor-" +
+    new Date().toISOString().slice(0, 19).replace(/:/g, "-") + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  setStatus("monitor-status",
+    "Exported " + lastMonitorEntries.length + " entries.", "green");
 }
 
 // ── API ────────────────────────────────────────────────────────────────────
@@ -971,11 +1260,11 @@ function renderConnStatus(s) {
   var el = document.getElementById("header-conn");
   if (s.connected) {
     el.innerHTML =
-      '<span class="green">\u25CF</span> ' +
+      '<span class="green">\u25cf</span> ' +
       '<span class="green">' + escapeHtml(s.ssid) + '</span>' +
       (s.ip ? ' <span class="dim">(' + escapeHtml(s.ip) + ')</span>' : '');
   } else {
-    el.innerHTML = '<span class="dim">\u25CB not connected</span>';
+    el.innerHTML = '<span class="dim">\u25cb not connected</span>';
   }
 }
 
@@ -992,13 +1281,15 @@ fetch("/api/version")
   .then(function(r) { return r.json(); })
   .then(function(d) {
     bleScanSeconds = d.bleScanSeconds || 10;
-    document.getElementById("header-title").textContent = d.app;
+    document.getElementById("header-title").textContent   = d.app;
     document.getElementById("header-version").textContent = "v" + d.version;
     document.title = d.app;
+    if (d.os) {
+      document.getElementById("header-os").textContent = "[" + d.os + "]";
+    }
   })
   .catch(function() {});
 
-// Show connection status immediately, then refresh every 10s
 pollConnStatus();
 setInterval(pollConnStatus, 10000);
 </script>

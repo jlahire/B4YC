@@ -4,6 +4,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import json
 import os
+import platform
 import threading
 import time
 import webbrowser
@@ -123,9 +124,10 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     def apiVersion(self):
         self.sendJson({
-            "version":       config.version,
-            "app":           config.appName,
+            "version":        config.version,
+            "app":            config.appName,
             "bleScanSeconds": config.bleScanSeconds,
+            "os":             platform.system(),
         })
 
     def apiScan(self):

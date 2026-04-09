@@ -268,30 +268,97 @@ def parseIwlistOutput(output):
 
 
 
-# macOS — airport
+# macOS — airport (deprecated in macOS 14+) → wdutil → system_profiler fallback
 
 def scanMac():
-    airportPath = ("/System/Library/PrivateFrameworks/Apple80211.framework"
-                   "/Versions/Current/Resources/airport")
+    # Try the classic airport tool first (macOS ≤ 13)
+    airportPaths = [
+        "/System/Library/PrivateFrameworks/Apple80211.framework"
+        "/Versions/Current/Resources/airport",
+        "/usr/local/bin/airport",          # some custom installs
+    ]
+    for airportPath in airportPaths:
+        networks = _tryAirport(airportPath)
+        if networks is not None:
+            return networks
+
+    # macOS 14+ — airport removed; use system_profiler as read-only fallback
+    networks = _trySystemProfilerWifi()
+    if networks is not None:
+        return networks
+
+    print("  Wi-Fi scan unavailable on this macOS version.")
+    print("  airport was removed in macOS 14; system_profiler returned no data.")
+    print("  Try: brew install --cask airport  or upgrade to a supported scanner.")
+    return []
+
+
+def _tryAirport(airportPath):
     try:
         output = subprocess.check_output(
             [airportPath, "-s"], text=True, stderr=subprocess.DEVNULL
         )
+        lines = output.strip().splitlines()
+        if len(lines) < 2:
+            return None
+        networks = []
+        for line in lines[1:]:
+            parsed = parseMacLine(line)
+            if parsed:
+                networks.append(parsed)
+        return networks if networks else None
     except (FileNotFoundError, subprocess.CalledProcessError):
-        print("  Couldn't run the airport.")
-        print("  You may need to locate the airport utility on your macOS version.")
-        return []
+        return None
 
+
+def _trySystemProfilerWifi():
+    """
+    macOS 14+ fallback. system_profiler SPAirPortDataType lists APs the
+    OS has seen recently — not a live active scan, but better than nothing.
+    """
+    import json as _json
+    try:
+        out = subprocess.check_output(
+            ["system_profiler", "SPAirPortDataType", "-json"],
+            text=True, stderr=subprocess.DEVNULL, timeout=15
+        )
+        data = _json.loads(out)
+        return _parseSystemProfilerWifi(data)
+    except Exception:
+        return None
+
+
+def _parseSystemProfilerWifi(data):
     networks = []
-    lines = output.strip().splitlines()
-    if len(lines) < 2:
-        return []
-
-    for line in lines[1:]:
-        parsed = parseMacLine(line)
-        if parsed:
-            networks.append(parsed)
-    return networks
+    seen = set()
+    for section in data.get("SPAirPortDataType", []):
+        for iface in section.get("spairport_airport_interfaces", []):
+            for net in iface.get("spairport_airport_other_local_wireless_networks", []):
+                ssid     = net.get("_name", "").strip()
+                bssid    = net.get("spairport_network_bssid", "").lower().strip()
+                channel  = str(net.get("spairport_network_channel", ""))
+                security = net.get("spairport_security_mode", "Open")
+                rssi     = net.get("spairport_signal_noise", 0)
+                if isinstance(rssi, str):
+                    try:
+                        rssi = int(rssi)
+                    except ValueError:
+                        rssi = 0
+                signal   = min(max(2 * (rssi + 100), 0), 100)
+                if security.lower() in ("none", ""):
+                    security = "Open"
+                key = bssid or ssid
+                if key and key not in seen:
+                    seen.add(key)
+                    networks.append({
+                        "ssid":     ssid,
+                        "bssid":    bssid,
+                        "signal":   signal,
+                        "channel":  channel,
+                        "security": security,
+                        "wps":      False,
+                    })
+    return networks if networks else None
 
 
 def parseMacLine(line):

@@ -1,0 +1,30 @@
+# B4YC — no pip packages required.
+# All dependencies are OS-provided system tools (see below).
+# Python >= 3.8 required.
+#
+# Run:  python install.py
+#       to check and install missing tools for your OS.
+#
+# ── Linux ────────────────────────────────────────────────────────────────
+# REQUIRED:
+#   iw              sudo apt install iw
+#   iproute2        sudo apt install iproute2          (ip command)
+#
+# OPTIONAL (fallbacks — at least one scanner from each group is needed):
+#   network-manager sudo apt install network-manager   (nmcli — wifi fallback)
+#   wireless-tools  sudo apt install wireless-tools    (iwlist — wifi fallback)
+#   bluez           sudo apt install bluez             (bluetoothctl / hcitool — BLE)
+#
+# One-liner:
+#   sudo apt install iw iproute2 network-manager wireless-tools bluez
+#
+# ── macOS ────────────────────────────────────────────────────────────────
+# All tools are built-in (airport / system_profiler / networksetup).
+# macOS 14+ removed airport; system_profiler is used automatically.
+# No installation needed.
+#
+# ── Windows ──────────────────────────────────────────────────────────────
+# All tools are built-in (netsh / powershell / ipconfig).
+# Ensure Wi-Fi is enabled before scanning.
+# BLE scanning is not supported on Windows.
+# No installation needed.
