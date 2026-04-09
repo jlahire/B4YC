@@ -4,6 +4,9 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import json
 import os
+import threading
+import time
+import webbrowser
 
 from scanners.wifi import scanWifi
 from scanners.ble import scanBle
@@ -15,6 +18,53 @@ from analyzers.summary import generateSummary, generateBleSummary, explainNetwor
 import config
 
 staticDir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+# ── Traffic logger ─────────────────────────────────────────────────────────
+# Samples once per second; keeps up to 3600 entries (~1 hour).
+# Each entry: {t, ssid, rx_bytes, tx_bytes, rx_bps, tx_bps}
+
+_trafficLog      = []
+_trafficLogLock  = threading.Lock()
+_LOG_MAX         = 3600
+_loggerStartedAt = None
+
+
+def _trafficLoggerThread():
+    global _loggerStartedAt
+    _loggerStartedAt = time.time()
+    prev = None
+    while True:
+        try:
+            stats = getTrafficStats()
+            now   = time.time()
+            rx_bps = 0
+            tx_bps = 0
+            if prev is not None:
+                dt = now - prev["t"]
+                if dt > 0:
+                    rx_bps = max(0, int((stats["rx_bytes"] - prev["rx_bytes"]) / dt))
+                    tx_bps = max(0, int((stats["tx_bytes"] - prev["tx_bytes"]) / dt))
+            entry = {
+                "t":        now,
+                "ssid":     stats.get("ssid"),
+                "rx_bytes": stats.get("rx_bytes", 0),
+                "tx_bytes": stats.get("tx_bytes", 0),
+                "rx_bps":   rx_bps,
+                "tx_bps":   tx_bps,
+            }
+            prev = entry
+            with _trafficLogLock:
+                _trafficLog.append(entry)
+                if len(_trafficLog) > _LOG_MAX:
+                    del _trafficLog[0]
+        except Exception:
+            pass
+        time.sleep(1)
+
+
+def _startTrafficLogger():
+    t = threading.Thread(target=_trafficLoggerThread, daemon=True)
+    t.start()
 
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -32,15 +82,17 @@ class RequestHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         routes = {
-            "/":              lambda: self.serveFile("index.html", "text/html"),
-            "/index.html":    lambda: self.serveFile("index.html", "text/html"),
-            "/api/version":   self.apiVersion,
-            "/api/scan":      self.apiScan,
-            "/api/ble":       self.apiBle,
-            "/api/anomalies": self.apiAnomalies,
-            "/api/summary":   self.apiSummary,
-            "/api/explain":   lambda: self.apiExplain(parsed),
-            "/api/traffic":   self.apiTraffic,
+            "/":                  lambda: self.serveFile("index.html", "text/html"),
+            "/index.html":        lambda: self.serveFile("index.html", "text/html"),
+            "/api/version":       self.apiVersion,
+            "/api/scan":          self.apiScan,
+            "/api/ble":           self.apiBle,
+            "/api/anomalies":     self.apiAnomalies,
+            "/api/summary":       self.apiSummary,
+            "/api/explain":       lambda: self.apiExplain(parsed),
+            "/api/traffic":       self.apiTraffic,
+            "/api/traffic/log":   lambda: self.apiTrafficLog(parsed),
+            "/api/status":        self.apiStatus,
         }
 
         handler = routes.get(path)
@@ -122,6 +174,28 @@ class RequestHandler(BaseHTTPRequestHandler):
     def apiTraffic(self):
         self.sendJson(getTrafficStats())
 
+    def apiTrafficLog(self, parsed):
+        params = parse_qs(parsed.query)
+        try:
+            limit = int(params.get("limit", [300])[0])
+        except (ValueError, IndexError):
+            limit = 300
+        with _trafficLogLock:
+            entries = list(_trafficLog[-limit:])
+        self.sendJson({
+            "started_at": _loggerStartedAt,
+            "entries":    entries,
+        })
+
+    def apiStatus(self):
+        stats = getTrafficStats()
+        self.sendJson({
+            "connected": bool(stats.get("ssid")),
+            "ssid":      stats.get("ssid"),
+            "ip":        stats.get("ip"),
+            "interface": stats.get("interface"),
+        })
+
     def apiConnect(self, data):
         ssid     = (data.get("ssid") or "").strip()
         password = (data.get("password") or "").strip() or None
@@ -164,13 +238,17 @@ class RequestHandler(BaseHTTPRequestHandler):
         pass  # thankyou google...
 
 
-def startWeb():
+def startWeb(openBrowser=True):
+    _startTrafficLogger()
     port = config.webPort
     server = HTTPServer(("127.0.0.1", port), RequestHandler)
+    url = f"http://localhost:{port}"
     print(f"\n  {config.appName}")
-    print(f"  Web UI is live at http://localhost:{port}")
+    print(f"  Web UI is live at {url}")
     print(f"  This only runs on your machine — nothing goes to the internet.")
     print(f"  Press Ctrl+C to stop.\n")
+    if openBrowser:
+        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -14,78 +14,167 @@
       font-family: "Courier New", monospace;
       font-size: 14px;
       height: 100vh;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
 
-    /* ── Main terminal view ── */
-    #main-view {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
+    /* ── Header ── */
     #header {
       padding: 10px 14px;
       border-bottom: 1px solid #333;
       color: #00ff88;
       font-weight: bold;
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
-    #output {
+    #header-version { color: #636e72; font-size: 12px; }
+
+    /* ── Tabs ── */
+    #tab-bar {
+      display: flex;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+      background: #12122a;
+    }
+    .tab {
+      padding: 8px 18px;
+      cursor: pointer;
+      color: #636e72;
+      border-bottom: 2px solid transparent;
+      user-select: none;
+      white-space: nowrap;
+      transition: color 0.15s;
+    }
+    .tab:hover { color: #c8d6e5; }
+    .tab.active {
+      color: #00ff88;
+      border-bottom-color: #00ff88;
+    }
+
+    /* ── Panes ── */
+    #pane-container {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .pane {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+    }
+    .pane.active { display: flex; }
+
+    .pane-toolbar {
+      padding: 8px 14px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: #12122a;
+      color: #00ff88;
+      border: 1px solid #00ff88;
+      padding: 5px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn:hover { background: #00ff88; color: #1a1a2e; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn:disabled:hover { background: #12122a; color: #00ff88; }
+
+    .btn-blue {
+      color: #3498db;
+      border-color: #3498db;
+    }
+    .btn-blue:hover { background: #3498db; color: #1a1a2e; }
+
+    .explain-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    #explain-input {
+      background: transparent;
+      border: 1px solid #444;
+      color: #c8d6e5;
+      font-family: inherit;
+      font-size: 13px;
+      padding: 5px 10px;
+      outline: none;
+      width: 220px;
+    }
+    #explain-input:focus { border-color: #3498db; }
+
+    .pane-output {
       flex: 1;
       overflow-y: auto;
       padding: 10px 14px;
       white-space: pre-wrap;
       word-break: break-word;
     }
-    #inputRow {
-      display: flex;
-      align-items: center;
-      border-top: 1px solid #333;
-      padding: 8px 14px;
-      flex-shrink: 0;
-    }
-    #prompt { color: #00ff88; margin-right: 8px; white-space: nowrap; }
-    #input {
-      flex: 1;
-      background: transparent;
-      border: none;
-      color: #c8d6e5;
-      font-family: inherit;
-      font-size: 14px;
-      outline: none;
+
+    .status-line {
+      font-size: 12px;
+      color: #636e72;
+      padding-left: 4px;
     }
 
-    /* ── Monitor view ── */
-    #monitor-view {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: #1a1a2e;
-      flex-direction: column;
-      z-index: 100;
-    }
-    #monitor-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 14px;
-      border-bottom: 1px solid #333;
-      flex-shrink: 0;
-    }
-    #monitor-title { color: #00ff88; font-weight: bold; }
-    #monitor-back {
-      color: #3498db;
-      cursor: pointer;
-      user-select: none;
-    }
-    #monitor-back:hover { color: #7fdbff; }
-    #monitor-body {
-      flex: 1;
-      overflow-y: auto;
+    /* ── Monitor pane ── */
+    #monitor-live {
       padding: 14px;
       white-space: pre-wrap;
       word-break: break-word;
+      border-bottom: 1px solid #222;
+      flex-shrink: 0;
     }
+    #monitor-log-wrap {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    #monitor-log-header {
+      padding: 6px 14px;
+      color: #636e72;
+      font-size: 12px;
+      border-bottom: 1px solid #1e1e3a;
+      flex-shrink: 0;
+    }
+    #monitor-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 14px 8px;
+    }
+    .log-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .log-table th {
+      text-align: left;
+      color: #636e72;
+      padding: 4px 8px 4px 0;
+      border-bottom: 1px solid #222;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+    .log-table td {
+      padding: 3px 8px 3px 0;
+      white-space: nowrap;
+      border-bottom: 1px solid #1a1a2e;
+    }
+    .log-table tr:hover td { background: #1e1e3a; }
 
     /* ── Shared ── */
     .green  { color: #00ff88; }
@@ -108,110 +197,217 @@
       color: #8899aa;
       font-size: 13px;
     }
+
+    /* ── Password overlay ── */
+    #pw-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.65);
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    #pw-overlay.open { display: flex; }
+    #pw-box {
+      background: #12122a;
+      border: 1px solid #333;
+      padding: 24px 28px;
+      min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #pw-title { color: #00ff88; font-weight: bold; }
+    #pw-input {
+      background: transparent;
+      border: 1px solid #444;
+      color: #c8d6e5;
+      font-family: inherit;
+      font-size: 14px;
+      padding: 6px 10px;
+      outline: none;
+      width: 100%;
+    }
+    #pw-input:focus { border-color: #3498db; }
+    #pw-actions { display: flex; gap: 8px; }
   </style>
 </head>
 <body>
 
-  <!-- ── Main terminal view ─────────────────────────────────── -->
-  <div id="main-view">
-    <div id="header">B4YC - Before You Connect</div>
-    <div id="output"></div>
-    <div id="inputRow">
-      <span id="prompt">b4yc &gt;</span>
-      <input id="input" autofocus placeholder="Type a command (try: help)">
-    </div>
+  <div id="header">
+    <span id="header-title">B4YC</span>
+    <span id="header-version"></span>
+    <span id="header-conn" style="margin-left:auto; font-size:12px;"></span>
   </div>
 
-  <!-- ── Monitor overlay ───────────────────────────────────── -->
-  <div id="monitor-view">
-    <div id="monitor-header">
-      <span id="monitor-title">B4YC MONITOR</span>
-      <span id="monitor-back" onclick="closeMonitor()">[back]</span>
+  <div id="tab-bar">
+    <span class="tab active" data-tab="wifi">Wi-Fi</span>
+    <span class="tab" data-tab="ble">Bluetooth</span>
+    <span class="tab" data-tab="anomalies">Anomalies</span>
+    <span class="tab" data-tab="summary">Summary</span>
+    <span class="tab" data-tab="monitor">Monitor</span>
+  </div>
+
+  <div id="pane-container">
+
+    <!-- Wi-Fi -->
+    <div class="pane active" id="pane-wifi">
+      <div class="pane-toolbar">
+        <button class="btn" id="btn-scan" onclick="doScan()">Scan Wi-Fi</button>
+        <span class="status-line" id="wifi-status"></span>
+      </div>
+      <div class="pane-output" id="wifi-output"></div>
     </div>
-    <div id="monitor-body"></div>
+
+    <!-- Bluetooth -->
+    <div class="pane" id="pane-ble">
+      <div class="pane-toolbar">
+        <button class="btn" id="btn-ble" onclick="doBle()">Scan Bluetooth</button>
+        <span class="status-line" id="ble-status"></span>
+      </div>
+      <div class="pane-output" id="ble-output"></div>
+    </div>
+
+    <!-- Anomalies -->
+    <div class="pane" id="pane-anomalies">
+      <div class="pane-toolbar">
+        <button class="btn" id="btn-anomalies" onclick="doAnomalies()">Check Anomalies</button>
+        <span class="status-line" id="anomalies-status"></span>
+      </div>
+      <div class="pane-output" id="anomalies-output"></div>
+    </div>
+
+    <!-- Summary -->
+    <div class="pane" id="pane-summary">
+      <div class="pane-toolbar">
+        <button class="btn" id="btn-summary" onclick="doSummary()">Generate Summary</button>
+        <div class="explain-row">
+          <input id="explain-input" type="text" placeholder="Network name...">
+          <button class="btn btn-blue" id="btn-explain" onclick="doExplain()">Explain Network</button>
+        </div>
+        <span class="status-line" id="summary-status"></span>
+      </div>
+      <div class="pane-output" id="summary-output"></div>
+    </div>
+
+    <!-- Monitor -->
+    <div class="pane" id="pane-monitor">
+      <div class="pane-toolbar">
+        <button class="btn btn-blue" id="btn-monitor-toggle" onclick="toggleMonitor()">Stop Monitor</button>
+        <span class="status-line" id="monitor-status">Live — updates every second</span>
+      </div>
+      <div id="monitor-live"></div>
+      <div id="monitor-log-wrap">
+        <div id="monitor-log-header">Traffic log — last 5 minutes</div>
+        <div id="monitor-log"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Password prompt overlay -->
+  <div id="pw-overlay">
+    <div id="pw-box">
+      <div id="pw-title">Enter Wi-Fi password</div>
+      <div id="pw-ssid" class="dim"></div>
+      <input id="pw-input" type="password" placeholder="Password (leave blank if open)">
+      <div id="pw-actions">
+        <button class="btn" onclick="confirmConnect()">Connect</button>
+        <button class="btn btn-blue" onclick="cancelConnect()">Cancel</button>
+      </div>
+    </div>
   </div>
 
 <script>
-var outputEl  = document.getElementById("output");
-var inputEl   = document.getElementById("input");
-var promptEl  = document.getElementById("prompt");
 var bleScanSeconds = 10;
 var detailCounter  = 0;
 
 // ── OUI vendor table ───────────────────────────────────────────────────────
 var OUI = {
-  // Apple
   "001CB3":"Apple","002500":"Apple","341590":"Apple","3C15C2":"Apple",
   "406C8F":"Apple","585B6D":"Apple","705681":"Apple","7CD1C3":"Apple",
   "843835":"Apple","8C85C4":"Apple","A4D931":"Apple","ACCF5C":"Apple",
   "B065BD":"Apple","D0034B":"Apple","F4F15A":"Apple",
-  // TP-Link
   "001D0F":"TP-Link","14CF92":"TP-Link","1C3BF3":"TP-Link","2887BA":"TP-Link",
   "50C7BF":"TP-Link","54E6FC":"TP-Link","6032B1":"TP-Link","6466B3":"TP-Link",
   "6C5AB5":"TP-Link","A0F3C1":"TP-Link","AC1518":"TP-Link","B04E26":"TP-Link",
   "C4E984":"TP-Link","D80D17":"TP-Link","DC4A9E":"TP-Link","EC086B":"TP-Link","F4F26D":"TP-Link",
-  // Netgear
   "00095B":"Netgear","000FB5":"Netgear","00146C":"Netgear","001B2F":"Netgear",
   "001E2A":"Netgear","0026F2":"Netgear","1C1B0D":"Netgear","204E7F":"Netgear",
   "2CB05D":"Netgear","4494FC":"Netgear","6CB0CE":"Netgear","8C3BAD":"Netgear",
   "A021B7":"Netgear","B03956":"Netgear","E0469A":"Netgear","E4F4C6":"Netgear",
-  // ASUS
   "000C6E":"ASUS","0013D4":"ASUS","001A92":"ASUS","107B44":"ASUS",
   "1C872C":"ASUS","2CFDA1":"ASUS","40169F":"ASUS","60A44C":"ASUS",
   "708BCD":"ASUS","74D02B":"ASUS","7824AF":"ASUS","88D7F6":"ASUS",
   "BCEEB7":"ASUS","D850E6":"ASUS","F46D04":"ASUS",
-  // D-Link
   "000D88":"D-Link","001195":"D-Link","0015E9":"D-Link","00179A":"D-Link",
   "001CF0":"D-Link","00265A":"D-Link","1C7EE5":"D-Link","28107B":"D-Link",
   "340804":"D-Link","44CCFE":"D-Link","6C198F":"D-Link","80AD16":"D-Link",
   "A0AB1B":"D-Link","B0C554":"D-Link","C0A0BB":"D-Link","F07D68":"D-Link",
-  // Cisco
   "00000C":"Cisco","00175A":"Cisco","001AA3":"Cisco","001C57":"Cisco",
   "002304":"Cisco","188B9D":"Cisco","2401C7":"Cisco","34DBF9":"Cisco",
   "78BAF9":"Cisco","A09347":"Cisco","B4DEF1":"Cisco","CCD31E":"Cisco","DCF72C":"Cisco",
-  // Ubiquiti
   "00156D":"Ubiquiti","002722":"Ubiquiti","0418D6":"Ubiquiti","24A43C":"Ubiquiti",
   "44D9E7":"Ubiquiti","687251":"Ubiquiti","78A200":"Ubiquiti","802AA8":"Ubiquiti",
   "B4FBE4":"Ubiquiti","DC9FDB":"Ubiquiti","E43883":"Ubiquiti","F09FC2":"Ubiquiti",
-  // Google / Nest
   "3C5AB4":"Google","546009":"Google","6CADF8":"Google","94EB2C":"Google",
   "A47733":"Google","F4F5D8":"Google",
-  // Amazon (Echo, Fire)
   "0C47C9":"Amazon","40B4CD":"Amazon","44650D":"Amazon","680971":"Amazon",
   "74C246":"Amazon","A002DC":"Amazon","AC63BE":"Amazon","F0A731":"Amazon","FC65DE":"Amazon",
-  // Samsung
   "001247":"Samsung","001599":"Samsung","00166B":"Samsung","101DC0":"Samsung",
   "18227E":"Samsung","244B03":"Samsung","34145F":"Samsung","4C66A1":"Samsung",
   "5C2E59":"Samsung","70F927":"Samsung","84A466":"Samsung","8C77C6":"Samsung",
   "A084CB":"Samsung","B075D5":"Samsung","C4420C":"Samsung","D4E8B2":"Samsung",
   "E4408C":"Samsung","F44228":"Samsung",
-  // Huawei
   "001882":"Huawei","002568":"Huawei","04C06F":"Huawei","04FE8D":"Huawei",
   "101B54":"Huawei","14A51A":"Huawei","18CF5E":"Huawei","246945":"Huawei",
   "283152":"Huawei","34B354":"Huawei","485388":"Huawei","54EA68":"Huawei",
   "5CE8EB":"Huawei","70CF49":"Huawei","8C34FD":"Huawei","9CC172":"Huawei",
   "A086C6":"Huawei","AC4E91":"Huawei","C8BE19":"Huawei","E019FD":"Huawei","F8980C":"Huawei",
-  // Xiaomi
   "086986":"Xiaomi","10927C":"Xiaomi","14F65A":"Xiaomi","28E31F":"Xiaomi",
   "346094":"Xiaomi","38A4ED":"Xiaomi","50EC50":"Xiaomi","54499F":"Xiaomi",
   "64B473":"Xiaomi","742344":"Xiaomi","7851CE":"Xiaomi","9C9993":"Xiaomi",
   "A468BC":"Xiaomi","AC2376":"Xiaomi","B0E235":"Xiaomi","C8A788":"Xiaomi",
   "CCA223":"Xiaomi","F02986":"Xiaomi","FC64BA":"Xiaomi",
-  // OnePlus
   "1C5766":"OnePlus","2CCC44":"OnePlus","946088":"OnePlus","AC7A4D":"OnePlus",
-  // Linksys
   "000C41":"Linksys","000F66":"Linksys","0014BF":"Linksys","001839":"Linksys",
   "001A70":"Linksys","202B20":"Linksys","48F8B3":"Linksys","586D8F":"Linksys",
-  // Aruba / HPE
   "007E37":"Aruba","0C2757":"Aruba","18648E":"Aruba","20A6CD":"Aruba",
   "24DEC6":"Aruba","40E3D6":"Aruba","70A8E3":"Aruba","84D47E":"Aruba",
   "94B40F":"Aruba","B0B8B5":"Aruba","C48E8F":"Aruba",
-  // Intel (laptop Wi-Fi cards)
   "001CC0":"Intel","00219B":"Intel","0024D7":"Intel","4CAC0A":"Intel",
   "606720":"Intel","6C8814":"Intel","9C4E36":"Intel","BC7739":"Intel","DC5360":"Intel",
-  // Ralink / MediaTek
   "001869":"Ralink","0024B2":"Ralink","0090CC":"Ralink","7CF11E":"Ralink",
 };
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+
+var activeTab = "wifi";
+
+document.querySelectorAll(".tab").forEach(function(tab) {
+  tab.addEventListener("click", function() {
+    switchTab(tab.getAttribute("data-tab"));
+  });
+});
+
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(function(t) {
+    t.classList.toggle("active", t.getAttribute("data-tab") === name);
+  });
+  document.querySelectorAll(".pane").forEach(function(p) {
+    p.classList.toggle("active", p.id === "pane-" + name);
+  });
+
+  var prev = activeTab;
+  activeTab = name;
+
+  if (name === "monitor" && prev !== "monitor") {
+    startMonitor();
+  } else if (name !== "monitor" && prev === "monitor") {
+    stopMonitor();
+  }
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -220,15 +416,21 @@ function escapeHtml(s) {
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function printHtml(html, cls) {
+function appendHtml(container, html, cls) {
   var el = document.createElement("div");
   if (cls) el.className = cls;
   el.innerHTML = html;
-  outputEl.appendChild(el);
-  outputEl.scrollTop = outputEl.scrollHeight;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
 }
 
-function print(text, cls) { printHtml(escapeHtml(text), cls); }
+function appendText(container, text, cls) {
+  appendHtml(container, escapeHtml(text), cls);
+}
+
+function clearOutput(id) {
+  document.getElementById(id).innerHTML = "";
+}
 
 function tagSpan(tag) {
   var cls = tag === "known" ? "green" : tag === "hotspot" ? "yellow" : "dim";
@@ -263,16 +465,16 @@ function signalQuality(pct) {
 
 function securityNote(sec) {
   var s = (sec || "").toLowerCase();
-  if (s === "open")         return ' <span class="red">— no encryption, all traffic visible nearby</span>';
-  if (s.includes("wep"))    return ' <span class="red">— broken standard, avoid connecting</span>';
-  if (s.includes("wpa3"))   return ' <span class="green">— latest standard, strong encryption</span>';
+  if (s === "open")         return ' <span class="red">— no encryption</span>';
+  if (s.includes("wep"))    return ' <span class="red">— broken, avoid</span>';
+  if (s.includes("wpa3"))   return ' <span class="green">— latest standard</span>';
   if (s.includes("wpa2"))   return ' <span class="green">— current standard</span>';
-  if (s.includes("wpa"))    return ' <span class="yellow">— outdated, has known weaknesses</span>';
+  if (s.includes("wpa"))    return ' <span class="yellow">— outdated</span>';
   return "";
 }
 
 function tagNote(tag) {
-  if (tag === "known")   return '<span class="green">KNOWN</span> — you have connected here before';
+  if (tag === "known")   return '<span class="green">KNOWN</span> — previously connected';
   if (tag === "hotspot") return '<span class="yellow">HOTSPOT</span> — looks like a mobile hotspot';
   return '<span class="dim">NEW</span> — not in your connection history';
 }
@@ -310,7 +512,17 @@ function sparkline(values, width) {
   }).join("");
 }
 
-// ── Detail panel builders ──────────────────────────────────────────────────
+function setStatus(id, text, cls) {
+  var el = document.getElementById(id);
+  el.textContent = text;
+  el.className = "status-line" + (cls ? " " + cls : "");
+}
+
+function setBusy(btnId, busy) {
+  document.getElementById(btnId).disabled = busy;
+}
+
+// ── Detail panels ──────────────────────────────────────────────────────────
 
 function formatRows(rows) {
   var maxKey = rows.reduce(function(m, r) { return Math.max(m, r[0].length); }, 0);
@@ -333,7 +545,7 @@ function buildWifiDetails(n) {
     ["Signal",   n.signal + "% — " + signalQuality(n.signal)],
     ["Security", escapeHtml(n.security) + securityNote(n.security)],
     ["WPS",      n.wps
-                   ? '<span class="yellow">Enabled — has known vulnerabilities (PIN brute-force)</span>'
+                   ? '<span class="yellow">Enabled — PIN brute-force vulnerability</span>'
                    : "Disabled"],
     ["Status",   tagNote(n.tag || "new")],
   ]);
@@ -356,18 +568,16 @@ function buildBleDetails(d) {
   ]);
 }
 
-// ── Row renderers ──────────────────────────────────────────────────────────
-
-function appendPanel(id, html) {
+function appendPanel(container, id, html) {
   var el = document.createElement("div");
   el.id = id;
   el.className = "detail-panel";
   el.style.display = "none";
   el.innerHTML = html;
-  outputEl.appendChild(el);
+  container.appendChild(el);
 }
 
-function printNetworkRow(n) {
+function printNetworkRow(container, n) {
   var pid  = "p" + (detailCounter++);
   var wps  = n.wps ? ' <span class="yellow">[WPS]</span>' : "";
   var bar  = signalBar(n.signal);
@@ -376,7 +586,7 @@ function printNetworkRow(n) {
   var connectBtn = n.ssid
     ? ' <span class="green connect-btn" data-ssid="' + escapeHtml(n.ssid) + '" data-security="' + escapeHtml(n.security) + '">[connect]</span>'
     : "";
-  printHtml(
+  appendHtml(container,
     "  " + escapeHtml((n.ssid || "(hidden)").substring(0, 26).padEnd(26)) +
     "  " + escapeHtml(n.bssid) +
     "  " + bar + " " + String(n.signal).padStart(3) + "%" +
@@ -384,24 +594,24 @@ function printNetworkRow(n) {
     "  " + escapeHtml(n.security) + wps +
     "  " + tag + detailBtn + connectBtn
   );
-  appendPanel(pid, buildWifiDetails(n));
+  appendPanel(container, pid, buildWifiDetails(n));
 }
 
-function printBleRow(d) {
+function printBleRow(container, d) {
   var pid = "p" + (detailCounter++);
   var tag = tagSpan(d.tag || "new");
   var btn = ' <span class="blue detail-btn" data-panel="' + pid + '">[+]</span>';
-  printHtml(
+  appendHtml(container,
     "    " + escapeHtml(d.name) +
     "  (" + escapeHtml(d.address) + ")" +
     "  " + tag + btn
   );
-  appendPanel(pid, buildBleDetails(d));
+  appendPanel(container, pid, buildBleDetails(d));
 }
 
-// ── Click delegation (details + connect) ──────────────────────────────────
+// ── Click delegation ───────────────────────────────────────────────────────
 
-outputEl.addEventListener("click", function(e) {
+document.getElementById("pane-container").addEventListener("click", function(e) {
   var btn = e.target;
 
   if (btn.classList.contains("detail-btn")) {
@@ -410,42 +620,54 @@ outputEl.addEventListener("click", function(e) {
     var open = panel.style.display !== "none";
     panel.style.display = open ? "none" : "block";
     btn.textContent = open ? "[+]" : "[-]";
-    outputEl.scrollTop = outputEl.scrollHeight;
     return;
   }
 
   if (btn.classList.contains("connect-btn")) {
-    initiateConnect(
-      btn.getAttribute("data-ssid"),
-      btn.getAttribute("data-security")
-    );
+    initiateConnect(btn.getAttribute("data-ssid"), btn.getAttribute("data-security"));
   }
 });
 
 // ── Connect flow ───────────────────────────────────────────────────────────
 
-var connectPending = null;
+var connectPendingSsid = null;
 
 function initiateConnect(ssid, security) {
   if (!ssid) {
-    print("  Can't connect to a hidden network — SSID not broadcast.", "red");
+    setStatus("wifi-status", "Can't connect to hidden network — SSID not broadcast.", "red");
     return;
   }
   var isOpen = !security || security.toLowerCase() === "open";
   if (isOpen) {
     doConnect(ssid, null);
   } else {
-    connectPending = { ssid: ssid };
-    print('  Connecting to "' + ssid + '" (' + security + ') — enter password below:');
-    inputEl.type        = "password";
-    inputEl.placeholder = "Wi-Fi password  (Enter to connect, Esc to cancel)";
-    promptEl.textContent = "password >";
-    inputEl.focus();
+    connectPendingSsid = ssid;
+    document.getElementById("pw-ssid").textContent = ssid + " (" + security + ")";
+    document.getElementById("pw-input").value = "";
+    document.getElementById("pw-overlay").classList.add("open");
+    document.getElementById("pw-input").focus();
   }
 }
 
+function confirmConnect() {
+  var pw   = document.getElementById("pw-input").value;
+  var ssid = connectPendingSsid;
+  cancelConnect();
+  doConnect(ssid, pw);
+}
+
+function cancelConnect() {
+  connectPendingSsid = null;
+  document.getElementById("pw-overlay").classList.remove("open");
+}
+
+document.getElementById("pw-input").addEventListener("keydown", function(e) {
+  if (e.key === "Enter")  confirmConnect();
+  if (e.key === "Escape") cancelConnect();
+});
+
 async function doConnect(ssid, password) {
-  print('  Connecting to "' + ssid + '"...');
+  setStatus("wifi-status", 'Connecting to "' + ssid + '"...');
   try {
     var res = await fetch("/api/connect", {
       method:  "POST",
@@ -453,19 +675,121 @@ async function doConnect(ssid, password) {
       body:    JSON.stringify({ ssid: ssid, password: password || "" }),
     });
     var data = await res.json();
-    print("  " + data.message, data.success ? "green" : "red");
+    setStatus("wifi-status", data.message, data.success ? "green" : "red");
   } catch(e) {
-    print("  Connection error: " + e.message, "red");
+    setStatus("wifi-status", "Connection error: " + e.message, "red");
   }
 }
 
-function cancelConnect() {
-  connectPending         = null;
-  inputEl.type           = "text";
-  inputEl.value          = "";
-  inputEl.placeholder    = "Type a command (try: help)";
-  promptEl.textContent   = "b4yc >";
+// ── Wi-Fi scan ─────────────────────────────────────────────────────────────
+
+async function doScan() {
+  var out = document.getElementById("wifi-output");
+  clearOutput("wifi-output");
+  setBusy("btn-scan", true);
+  setStatus("wifi-status", "Scanning...");
+  try {
+    var data = await api("/api/scan");
+    if (data.length === 0) {
+      setStatus("wifi-status", "No Wi-Fi networks found.");
+    } else {
+      data.forEach(function(n) { printNetworkRow(out, n); });
+      setStatus("wifi-status", data.length + " network(s) found.", "green");
+    }
+  } catch(e) {
+    setStatus("wifi-status", "Error: " + e.message, "red");
+  }
+  setBusy("btn-scan", false);
 }
+
+// ── BLE scan ───────────────────────────────────────────────────────────────
+
+async function doBle() {
+  var out = document.getElementById("ble-output");
+  clearOutput("ble-output");
+  setBusy("btn-ble", true);
+  setStatus("ble-status", "Scanning for " + bleScanSeconds + "s...");
+  try {
+    var data = await api("/api/ble");
+    if (data.devices.length === 0) {
+      setStatus("ble-status", "No Bluetooth devices found.");
+    } else {
+      data.devices.forEach(function(d) { printBleRow(out, d); });
+      appendText(out, "");
+      appendText(out, data.summary);
+      setStatus("ble-status", data.devices.length + " device(s) found.", "green");
+    }
+  } catch(e) {
+    setStatus("ble-status", "Error: " + e.message, "red");
+  }
+  setBusy("btn-ble", false);
+}
+
+// ── Anomalies ──────────────────────────────────────────────────────────────
+
+async function doAnomalies() {
+  var out = document.getElementById("anomalies-output");
+  clearOutput("anomalies-output");
+  setBusy("btn-anomalies", true);
+  setStatus("anomalies-status", "Scanning...");
+  try {
+    var data = await api("/api/anomalies");
+    if (data.anomalies.length === 0) {
+      appendHtml(out, '\n  <span class="green">Nothing suspicious found. Looks good from here.</span>');
+      setStatus("anomalies-status", "All clear.", "green");
+    } else {
+      data.anomalies.forEach(function(a) {
+        var cls = a.severity === "high" ? "red" : a.severity === "medium" ? "yellow" : "blue";
+        appendHtml(out, '<span class="' + cls + '">  [' + a.severity.toUpperCase() + '] ' + escapeHtml(a.message) + '</span>');
+      });
+      setStatus("anomalies-status", data.anomalies.length + " anomaly(s) found.", "yellow");
+    }
+  } catch(e) {
+    setStatus("anomalies-status", "Error: " + e.message, "red");
+  }
+  setBusy("btn-anomalies", false);
+}
+
+// ── Summary / Explain ──────────────────────────────────────────────────────
+
+async function doSummary() {
+  var out = document.getElementById("summary-output");
+  clearOutput("summary-output");
+  setBusy("btn-summary", true);
+  setStatus("summary-status", "Scanning and analyzing...");
+  try {
+    var data = await api("/api/summary");
+    appendText(out, data.summary);
+    setStatus("summary-status", "Done.", "green");
+  } catch(e) {
+    setStatus("summary-status", "Error: " + e.message, "red");
+  }
+  setBusy("btn-summary", false);
+}
+
+async function doExplain() {
+  var name = document.getElementById("explain-input").value.trim();
+  if (!name) {
+    setStatus("summary-status", "Enter a network name first.", "yellow");
+    return;
+  }
+  var out = document.getElementById("summary-output");
+  clearOutput("summary-output");
+  setBusy("btn-explain", true);
+  setStatus("summary-status", 'Looking up "' + name + '"...');
+  try {
+    var data = await api("/api/explain?ssid=" + encodeURIComponent(name));
+    appendText(out, data.explanation);
+    setStatus("summary-status", "Done.", "green");
+  } catch(e) {
+    setStatus("summary-status", "Error: " + e.message, "red");
+  }
+  setBusy("btn-explain", false);
+}
+
+document.getElementById("explain-input").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") doExplain();
+});
 
 // ── Monitor ────────────────────────────────────────────────────────────────
 
@@ -477,27 +801,34 @@ var txHistory       = [];
 var rxPeak          = 0;
 var txPeak          = 0;
 
-function openMonitor() {
+function startMonitor() {
   monitorPrev  = null;
   monitorStart = null;
   rxHistory    = [];
   txHistory    = [];
   rxPeak       = 0;
   txPeak       = 0;
-
-  document.getElementById("monitor-view").style.display = "flex";
-  document.getElementById("main-view").style.display    = "none";
-
+  document.getElementById("btn-monitor-toggle").textContent = "Stop Monitor";
+  setStatus("monitor-status", "Live — updates every second");
   updateMonitor();
   monitorInterval = setInterval(updateMonitor, 1000);
+  startLogPoller();
 }
 
-function closeMonitor() {
+function stopMonitor() {
   clearInterval(monitorInterval);
   monitorInterval = null;
-  document.getElementById("monitor-view").style.display = "none";
-  document.getElementById("main-view").style.display    = "flex";
-  inputEl.focus();
+  stopLogPoller();
+  document.getElementById("btn-monitor-toggle").textContent = "Start Monitor";
+  setStatus("monitor-status", "Stopped.");
+}
+
+function toggleMonitor() {
+  if (monitorInterval) {
+    stopMonitor();
+  } else {
+    startMonitor();
+  }
 }
 
 async function updateMonitor() {
@@ -528,18 +859,18 @@ async function updateMonitor() {
 }
 
 function renderMonitor(d, rxSpeed, txSpeed, rxTotal, txTotal) {
-  var sep  = "  " + "\u2500".repeat(62);
+  var sep     = "  " + "\u2500".repeat(62);
   var ssidStr = d.ssid
     ? '<span class="green">' + escapeHtml(d.ssid) + "</span>"
     : '<span class="dim">not connected</span>';
-  var ipStr = d.ip
+  var ipStr   = d.ip
     ? '<span class="green">' + escapeHtml(d.ip) + "</span>"
     : '<span class="dim">no IP assigned</span>';
 
   var rxSpark = sparkline(rxHistory, 60);
   var txSpark = sparkline(txHistory, 60);
 
-  document.getElementById("monitor-body").innerHTML = [
+  document.getElementById("monitor-live").innerHTML = [
     "",
     "  <span class=\"dim\">Interface:</span>  " + escapeHtml(d.interface || "\u2014") +
       "    <span class=\"dim\">SSID:</span>  " + ssidStr,
@@ -564,8 +895,67 @@ function renderMonitor(d, rxSpeed, txSpeed, rxTotal, txTotal) {
     "  <span class=\"dim\">  " + escapeHtml(txSpark) + "</span>",
     "",
     sep,
-    "  <span class=\"dim\">Updates every second.  Press Esc or click [back] to return.</span>",
   ].join("\n");
+}
+
+// ── Traffic log ────────────────────────────────────────────────────────────
+
+var logInterval = null;
+
+function startLogPoller() {
+  loadTrafficLog();
+  logInterval = setInterval(loadTrafficLog, 5000);
+}
+
+function stopLogPoller() {
+  clearInterval(logInterval);
+  logInterval = null;
+}
+
+async function loadTrafficLog() {
+  try {
+    var data = await api("/api/traffic/log?limit=300");
+    renderTrafficLog(data.entries, data.started_at);
+  } catch(e) { /* silent */ }
+}
+
+function renderTrafficLog(entries, startedAt) {
+  if (!entries || entries.length === 0) {
+    document.getElementById("monitor-log").innerHTML =
+      '<span class="dim" style="padding:8px 0;display:block">No data yet.</span>';
+    return;
+  }
+
+  // Build header label
+  var startStr = startedAt
+    ? "since " + new Date(startedAt * 1000).toLocaleTimeString()
+    : "";
+  document.getElementById("monitor-log-header").textContent =
+    "Traffic log — " + entries.length + " entries " + startStr;
+
+  // Show newest first
+  var rows = entries.slice().reverse();
+  var html = '<table class="log-table"><thead><tr>' +
+    '<th>Time</th><th>SSID</th><th>Download</th><th>Upload</th>' +
+    '</tr></thead><tbody>';
+
+  rows.forEach(function(e) {
+    var t    = new Date(e.t * 1000).toLocaleTimeString();
+    var ssid = e.ssid
+      ? '<span class="green">' + escapeHtml(e.ssid) + '</span>'
+      : '<span class="dim">—</span>';
+    var rx   = e.rx_bps > 0
+      ? '<span class="green">' + escapeHtml(fmtSpeed(e.rx_bps)) + '</span>'
+      : '<span class="dim">—</span>';
+    var tx   = e.tx_bps > 0
+      ? '<span class="yellow">' + escapeHtml(fmtSpeed(e.tx_bps)) + '</span>'
+      : '<span class="dim">—</span>';
+    html += '<tr><td class="dim">' + escapeHtml(t) + '</td><td>' + ssid +
+            '</td><td>' + rx + '</td><td>' + tx + '</td></tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById("monitor-log").innerHTML = html;
 }
 
 // ── API ────────────────────────────────────────────────────────────────────
@@ -575,130 +965,26 @@ async function api(endpoint) {
   return await res.json();
 }
 
-// ── Command handler ────────────────────────────────────────────────────────
+// ── Connection status ──────────────────────────────────────────────────────
 
-async function runCommand(raw) {
-  var parts = raw.trim().split(/\s+/);
-  var cmd = (parts[0] || "").toLowerCase();
-  var arg = parts.slice(1).join(" ");
-  if (!cmd) return;
-
-  print("b4yc > " + raw, "dim");
-
-  if (cmd === "help") {
-    print("");
-    print("  Commands:", "blue");
-    print("  scan              See nearby Wi-Fi networks");
-    print("  ble               See nearby Bluetooth devices");
-    print("  anomalies         Check for anything suspicious");
-    print("  summary           Plain-English overview of your area");
-    print("  explain <name>    Learn more about a specific network");
-    print("  monitor           Live traffic monitor");
-    print("  clear             Clear the screen");
-    print("  help              You're looking at it");
-    print("");
-    print("  Tags:", "blue");
-    printHtml('  ' + tagSpan("known")   + '   previously connected');
-    printHtml('  ' + tagSpan("hotspot") + ' looks like a mobile hotspot');
-    printHtml('  ' + tagSpan("new")     + '     not seen before');
-    printHtml('  <span class="blue">[+]</span>           click to expand details');
-    printHtml('  <span class="green">[connect]</span>     click to connect');
-    print("");
-    return;
+function renderConnStatus(s) {
+  var el = document.getElementById("header-conn");
+  if (s.connected) {
+    el.innerHTML =
+      '<span class="green">\u25CF</span> ' +
+      '<span class="green">' + escapeHtml(s.ssid) + '</span>' +
+      (s.ip ? ' <span class="dim">(' + escapeHtml(s.ip) + ')</span>' : '');
+  } else {
+    el.innerHTML = '<span class="dim">\u25CB not connected</span>';
   }
-
-  if (cmd === "clear") { outputEl.innerHTML = ""; return; }
-
-  if (cmd === "monitor") { openMonitor(); return; }
-
-  if (cmd === "scan") {
-    print("  Scanning for Wi-Fi networks...");
-    try {
-      var data = await api("/api/scan");
-      if (data.length === 0) { print("  No Wi-Fi networks found nearby."); return; }
-      print("");
-      data.forEach(printNetworkRow);
-      printHtml('\n  <span class="green">' + data.length + " network(s) found.</span>");
-    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
-    return;
-  }
-
-  if (cmd === "ble") {
-    print("  Listening for Bluetooth devices (" + bleScanSeconds + "s)...");
-    try {
-      var data = await api("/api/ble");
-      print("");
-      if (data.devices.length === 0) { print("  No Bluetooth devices found."); return; }
-      data.devices.forEach(printBleRow);
-      print("");
-      print(data.summary);
-    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
-    return;
-  }
-
-  if (cmd === "anomalies") {
-    print("  Checking for anomalies...");
-    try {
-      var data = await api("/api/anomalies");
-      if (data.anomalies.length === 0) {
-        print("\n  Nothing suspicious found. Looks good from here.", "green");
-        return;
-      }
-      print("");
-      data.anomalies.forEach(function(a) {
-        var cls = a.severity === "high" ? "red" : a.severity === "medium" ? "yellow" : "blue";
-        printHtml('<span class="' + cls + '">  [' + a.severity.toUpperCase() + '] ' + escapeHtml(a.message) + '</span>');
-      });
-    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
-    return;
-  }
-
-  if (cmd === "summary") {
-    print("  Scanning and analyzing...");
-    try {
-      var data = await api("/api/summary");
-      print("\n" + data.summary);
-    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
-    return;
-  }
-
-  if (cmd === "explain") {
-    if (!arg) { print("  Which network? Example: explain CoffeeShopWifi"); return; }
-    print("  Looking up \"" + arg + "\"...");
-    try {
-      var data = await api("/api/explain?ssid=" + encodeURIComponent(arg));
-      print("\n" + data.explanation);
-    } catch(e) { print("  Something went wrong: " + e.message, "red"); }
-    return;
-  }
-
-  print("  Don't know \"" + cmd + "\". Type \"help\" to see what's available.");
 }
 
-// ── Input handling ─────────────────────────────────────────────────────────
-
-inputEl.addEventListener("keydown", function(e) {
-  if (e.key === "Escape") {
-    if (connectPending) { cancelConnect(); print("  Cancelled.", "dim"); }
-    return;
-  }
-
-  if (e.key === "Enter") {
-    if (connectPending) {
-      var pw   = inputEl.value;
-      var ssid = connectPending.ssid;
-      cancelConnect();
-      doConnect(ssid, pw);
-    } else {
-      runCommand(inputEl.value);
-      inputEl.value = "";
-    }
-  }
-});
-
-document.addEventListener("keydown", function(e) {
-  if (e.key === "Escape" && monitorInterval) closeMonitor();
-});
+function pollConnStatus() {
+  fetch("/api/status")
+    .then(function(r) { return r.json(); })
+    .then(renderConnStatus)
+    .catch(function() {});
+}
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 
@@ -706,20 +992,15 @@ fetch("/api/version")
   .then(function(r) { return r.json(); })
   .then(function(d) {
     bleScanSeconds = d.bleScanSeconds || 10;
-    document.getElementById("header").textContent = d.app;
-    print("  " + d.app + "  v" + d.version, "green");
-    print("  Know what's around you before you go online.");
-    print("");
-    print("  Type \"help\" for commands.");
-    print("");
+    document.getElementById("header-title").textContent = d.app;
+    document.getElementById("header-version").textContent = "v" + d.version;
+    document.title = d.app;
   })
-  .catch(function() {
-    print("  B4YC - Before You Connect", "green");
-    print("  Know what's around you before you go online.");
-    print("");
-    print("  Type \"help\" for commands.");
-    print("");
-  });
+  .catch(function() {});
+
+// Show connection status immediately, then refresh every 10s
+pollConnStatus();
+setInterval(pollConnStatus, 10000);
 </script>
 </body>
 </html>

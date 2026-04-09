@@ -35,7 +35,7 @@ def getTrafficStats():
 # ── Linux ──────────────────────────────────────────────────────────────────
 
 def _statsLinux():
-    iface = _wifiIfaceLinux()
+    iface = _activeIfaceLinux()
     rx, tx = _procNetDev(iface)
     return {
         "interface": iface,
@@ -46,22 +46,31 @@ def _statsLinux():
     }
 
 
-def _wifiIfaceLinux():
+def _activeIfaceLinux():
+    """Return the interface that carries the default route — the one actually
+    handling internet traffic, whether wifi, ethernet, or a VM bridge."""
     try:
-        out = subprocess.check_output(["iw", "dev"], text=True, stderr=subprocess.DEVNULL)
-        m = re.search(r'Interface\s+(\S+)', out)
+        out = subprocess.check_output(
+            ["ip", "route", "show", "default"],
+            text=True, stderr=subprocess.DEVNULL
+        )
+        m = re.search(r'\bdev\s+(\S+)', out)
         if m:
             return m.group(1)
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
+    # fallback: prefer any wl* interface, then whatever ip link lists first
     try:
         out = subprocess.check_output(["ip", "link", "show"], text=True, stderr=subprocess.DEVNULL)
         m = re.search(r'\d+:\s+(wl\S+):', out)
         if m:
             return m.group(1)
+        m = re.search(r'\d+:\s+((?!lo)\S+):', out)
+        if m:
+            return m.group(1)
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
-    return "wlan0"
+    return "eth0"
 
 
 def _ipLinux(iface):
@@ -79,15 +88,30 @@ def _ipLinux(iface):
 
 
 def _ssidLinux():
+    # Try nmcli first (most reliable on NetworkManager systems)
     try:
         out = subprocess.check_output(
             ["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"],
             text=True, stderr=subprocess.DEVNULL
         )
         for line in out.strip().splitlines():
-            # format: yes:SSID — SSID may contain colons
             if line.startswith("yes:"):
-                return line[4:] or None
+                ssid = line[4:]
+                return ssid or None
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pass
+    # Fallback: iw dev <iface> link
+    try:
+        out = subprocess.check_output(["iw", "dev"], text=True, stderr=subprocess.DEVNULL)
+        ifaces = re.findall(r'Interface\s+(\S+)', out)
+        for iface in ifaces:
+            link = subprocess.check_output(
+                ["iw", "dev", iface, "link"],
+                text=True, stderr=subprocess.DEVNULL
+            )
+            m = re.search(r'SSID:\s+(.+)', link)
+            if m:
+                return m.group(1).strip() or None
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
     return None
