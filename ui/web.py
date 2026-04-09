@@ -14,6 +14,7 @@ from scanners.ble import scanBle
 from scanners.known import getKnownWifi, getKnownBle, tagNetworks, tagDevices
 from scanners.connect import connectWifi
 from scanners.traffic import getTrafficStats
+from scanners.oui import loadOui, sourceInfo
 from analyzers.anomalies import detectAnomalies
 from analyzers.summary import generateSummary, generateBleSummary, explainNetwork
 import config
@@ -85,7 +86,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         routes = {
             "/":                  lambda: self.serveFile("index.html", "text/html"),
             "/index.html":        lambda: self.serveFile("index.html", "text/html"),
-            "/oui.json":          lambda: self.serveFile("oui.json", "application/json"),
+            "/oui.json":          self.serveOui,
             "/api/version":       self.apiVersion,
             "/api/scan":          self.apiScan,
             "/api/ble":           self.apiBle,
@@ -210,6 +211,16 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     # ── Static file serving ────────────────────────────────────────────────
 
+    def serveOui(self):
+        oui_json = os.path.join(staticDir, "oui.json")
+        data = loadOui(oui_json)
+        body = json.dumps(data, separators=(",", ":")).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", len(body))
+        self.end_headers()
+        self.wfile.write(body)
+
     def serveFile(self, filename, contentType):
         filepath = os.path.join(staticDir, filename)
         if not os.path.isfile(filepath):
@@ -246,8 +257,11 @@ def startWeb(openBrowser=True):
     port = config.webPort
     server = HTTPServer(("127.0.0.1", port), RequestHandler)
     url = f"http://localhost:{port}"
+    oui_json = os.path.join(staticDir, "oui.json")
+    oui_src  = sourceInfo(oui_json)
     print(f"\n  {config.appName}")
     print(f"  Web UI is live at {url}")
+    print(f"  OUI source: {oui_src}")
     print(f"  This only runs on your machine — nothing goes to the internet.")
     print(f"  Press Ctrl+C to stop.\n")
     if openBrowser:

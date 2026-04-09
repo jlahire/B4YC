@@ -399,12 +399,29 @@ def main():
         info("B4YC supports Linux, macOS, and Windows.")
         sys.exit(1)
 
+    # Check whether a usable OUI source is already present
     print()
-    if prompt_yes("Download IEEE OUI database for accurate device identification?"):
-        download_oui_db()
+    from scanners.oui import sourceInfo
+    oui_json = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "ui", "static", "oui.json")
+    src = sourceInfo(oui_json)
+    if "built-in" not in src:
+        ok(f"OUI source already available: {src}")
+        info("No download needed.")
+        if prompt_yes("Download the full IEEE database anyway (30K+ entries)?"):
+            download_oui_db()
     else:
-        info("Skipped — built-in table (~200 common vendors) will be used.")
-        info("Run install.py again any time to download it.")
+        title("OUI vendor database")
+        info("No local OUI file found (checked Wireshark, ieee-data, nmap).")
+        info("Options:")
+        info("  a) Download IEEE database now (~3 MB, one-time)")
+        info("  b) apt install wireshark   or   apt install ieee-data")
+        info("  c) Skip — built-in table of ~200 common vendors will be used")
+        print()
+        if prompt_yes("Download IEEE OUI database now?"):
+            download_oui_db()
+        else:
+            info("Skipped. Install wireshark/ieee-data, or re-run install.py later.")
 
     print("\n  Ready. Start with:  python b4yc.py web\n")
 
