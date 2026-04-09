@@ -85,6 +85,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         routes = {
             "/":                  lambda: self.serveFile("index.html", "text/html"),
             "/index.html":        lambda: self.serveFile("index.html", "text/html"),
+            "/oui.json":          lambda: self.serveFile("oui.json", "application/json"),
             "/api/version":       self.apiVersion,
             "/api/scan":          self.apiScan,
             "/api/ble":           self.apiBle,

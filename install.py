@@ -6,11 +6,15 @@ Detects your OS and ensures all required system tools are present.
 Usage: python install.py
 """
 
+import csv
+import io
+import json
 import os
 import platform
 import shutil
 import subprocess
 import sys
+import urllib.request
 
 
 # ── Formatting helpers ─────────────────────────────────────────────────────
@@ -248,6 +252,115 @@ def install_windows():
     print("    python b4yc.py help   -- all commands")
 
 
+# ── IEEE OUI database ──────────────────────────────────────────────────────
+
+_OUI_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "ui", "static", "oui.json")
+_OUI_URL = "https://standards-oui.ieee.org/oui/oui.csv"
+
+# Common corporate suffixes to strip for cleaner display names
+_SUFFIXES = (
+    ", Inc.", " Incorporated", " Inc",
+    ", LLC", " L.L.C.", " LLC",
+    ", Ltd.", " Ltd", " Limited",
+    ", Corp.", " Corp", " Corporation",
+    ", Co.", " Co",
+    " GmbH & Co. KG", " GmbH",
+    " AG", " S.A.", " S.L.", " S.p.A.", " S.A.S.",
+    " B.V.", " N.V.", " Oy", " AB", " AS",
+    " International", " Technologies", " Technology",
+    " Systems", " Networks", " Solutions",
+    " Electronics", " Electric",
+    " Communication", " Communications",
+    " Semiconductor", " Microsystems",
+    " Computer", " Computers",
+)
+
+# Short all-caps tokens that should stay upper-case in Title Case conversion
+_KEEP_UPPER = {
+    "IEEE", "USA", "USB", "UK", "EU",
+    "LLC", "LTD", "INC", "CORP",
+    "HP", "IBM", "NEC", "LG", "GE",
+    "AMD", "ARM", "MSI", "HTC", "BT",
+    "AP", "AV", "ID", "IP", "IT", "TV", "PC", "IoT",
+}
+
+
+def _clean_vendor(raw):
+    """Strip legal suffixes and return a clean Title-Cased name."""
+    name = raw.strip()
+    # strip suffixes (case-insensitive)
+    low = name.lower()
+    for suf in _SUFFIXES:
+        if low.endswith(suf.lower()):
+            name = name[: -len(suf)].rstrip(",").strip()
+            low  = name.lower()
+    # title-case, preserving known acronyms
+    words = name.split()
+    out   = []
+    for w in words:
+        if w.upper() in _KEEP_UPPER:
+            out.append(w.upper())
+        elif len(w) <= 3 and w.isupper():
+            out.append(w)          # keep short acronyms as-is
+        else:
+            out.append(w.capitalize())
+    return " ".join(out)[:52]      # cap display length
+
+
+def download_oui_db():
+    title("IEEE OUI vendor database")
+
+    if os.path.isfile(_OUI_OUT):
+        size_kb = os.path.getsize(_OUI_OUT) // 1024
+        ok(f"oui.json already present  ({size_kb} KB)")
+        if not prompt_yes("Re-download to refresh?"):
+            return
+
+    info(f"Source: {_OUI_URL}")
+    info("Downloading ... (usually < 5 MB, takes a few seconds)")
+
+    try:
+        req = urllib.request.Request(_OUI_URL,
+                                     headers={"User-Agent": "B4YC/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+    except Exception as e:
+        err(f"Download failed: {e}")
+        info("OUI lookup will fall back to the built-in table.")
+        return
+
+    oui_map = {}
+    reader  = csv.reader(io.StringIO(raw))
+    try:
+        next(reader)   # skip CSV header row
+    except StopIteration:
+        err("Empty response from IEEE — try again later.")
+        return
+
+    for row in reader:
+        if len(row) < 3:
+            continue
+        if row[0].strip() != "MA-L":     # only standard 24-bit OUI assignments
+            continue
+        prefix = row[1].strip().upper()  # e.g. "AABBCC"
+        vendor = _clean_vendor(row[2])
+        if prefix and vendor:
+            oui_map[prefix] = vendor
+
+    if not oui_map:
+        err("Parsed 0 entries — file format may have changed.")
+        return
+
+    os.makedirs(os.path.dirname(_OUI_OUT), exist_ok=True)
+    with open(_OUI_OUT, "w", encoding="utf-8") as f:
+        json.dump(oui_map, f, separators=(",", ":"), ensure_ascii=False)
+
+    size_kb = os.path.getsize(_OUI_OUT) // 1024
+    ok(f"oui.json saved  ({len(oui_map):,} entries, {size_kb} KB)")
+    info("The web UI will load this automatically on next scan.")
+
+
 # ── Main ───────────────────────────────────────────────────────────────────
 
 def main():
@@ -268,6 +381,13 @@ def main():
         warn(f"Unknown OS: {os_name}")
         info("B4YC supports Linux, macOS, and Windows.")
         sys.exit(1)
+
+    print()
+    if prompt_yes("Download IEEE OUI database for accurate device identification?"):
+        download_oui_db()
+    else:
+        info("Skipped — built-in table (~200 common vendors) will be used.")
+        info("Run install.py again any time to download it.")
 
     print("\n  Ready. Start with:  python b4yc.py web\n")
 
