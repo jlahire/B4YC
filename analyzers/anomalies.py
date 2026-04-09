@@ -99,7 +99,8 @@ def checkHiddenNetworks(networks):
 def checkSuspiciousNames(networks):
     hits = []
     for net in networks:
-        if net["ssid"].lower() in config.suspiciousNames:
+        ssid_lower = net["ssid"].lower()
+        if any(name in ssid_lower for name in config.suspiciousNames):
             hits.append({
                 "type": "suspiciousName",
                 "severity": "medium",

@@ -7,20 +7,34 @@
 import subprocess
 import platform
 import re
+import time
 
 
 def scanWifi():
     osName = platform.system()
 
     if osName == "Linux":
-        return scanLinux()
+        networks = scanLinux()
     elif osName == "Darwin":
-        return scanMac()
+        networks = scanMac()
     elif osName == "Windows":
-        return scanWindows()
+        networks = scanWindows()
     else:
         print(f"  Sorry, {osName} is a nogo.....")
         return []
+
+    return _dedupByBssid(networks)
+
+
+def _dedupByBssid(networks):
+    seen = set()
+    result = []
+    for n in networks:
+        key = n["bssid"] or id(n)
+        if key not in seen:
+            seen.add(key)
+            result.append(n)
+    return result
 
 
 # Linux — iw > nmcli > iwlist
@@ -39,7 +53,7 @@ def scanLinux():
     if networks is not None:
         return networks
 
-    print("  Couldn't Wi-Fi scanner.")
+    print("  Couldn't run the Wi-Fi scanner.")
     print("  Make sure you have iw, nmcli, or wireless-tools installed.")
     print("  On Kali/Debian: sudo apt install iw wireless-tools network-manager")
     return []
@@ -139,7 +153,20 @@ def freqToChannel(freq):
     return str(freq)
 
 
+def _requestRescan():
+    """Ask nmcli to trigger a fresh scan. Best-effort — ignore all errors."""
+    try:
+        subprocess.run(
+            ["nmcli", "dev", "wifi", "rescan"],
+            timeout=5, capture_output=True
+        )
+        time.sleep(1)
+    except Exception:
+        pass
+
+
 def tryNmcliScan():
+    _requestRescan()
     try:
         output = subprocess.check_output(
             ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,SECURITY",

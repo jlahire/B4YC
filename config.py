@@ -2,7 +2,7 @@
 
 # where the web interface runs (localhost only)
 webPort = 8484
-version = "0.1.0"
+version = "0.2.0"
 appName = "B4YC - Before You Connect"
 
 # how long to listen for Bluetooth devices (seconds)
@@ -17,3 +17,9 @@ suspiciousNames = [
 
 # shows strength of signal, if its over 90 it might be close by
 suspiciousSignalFloor = 90
+
+# substrings (case-insensitive) used to identify mobile hotspots
+hotspotPatterns = [
+    "hotspot", "iphone", "ipad", "androidap",
+    "galaxy", "pixel", "huawei", "oneplus", "xiaomi", "oppo",
+]

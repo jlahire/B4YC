@@ -7,6 +7,9 @@ import os
 
 from scanners.wifi import scanWifi
 from scanners.ble import scanBle
+from scanners.known import getKnownWifi, getKnownBle, tagNetworks, tagDevices
+from scanners.connect import connectWifi
+from scanners.traffic import getTrafficStats
 from analyzers.anomalies import detectAnomalies
 from analyzers.summary import generateSummary, generateBleSummary, explainNetwork
 import config
@@ -22,6 +25,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
             pass
 
+    # ── GET ────────────────────────────────────────────────────────────────
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
@@ -29,11 +34,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         routes = {
             "/":              lambda: self.serveFile("index.html", "text/html"),
             "/index.html":    lambda: self.serveFile("index.html", "text/html"),
+            "/api/version":   self.apiVersion,
             "/api/scan":      self.apiScan,
             "/api/ble":       self.apiBle,
             "/api/anomalies": self.apiAnomalies,
             "/api/summary":   self.apiSummary,
             "/api/explain":   lambda: self.apiExplain(parsed),
+            "/api/traffic":   self.apiTraffic,
         }
 
         handler = routes.get(path)
@@ -42,23 +49,61 @@ class RequestHandler(BaseHTTPRequestHandler):
         else:
             self.send404()
 
-    # api stuff
+    # ── POST ───────────────────────────────────────────────────────────────
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length).decode("utf-8", errors="replace")
+        try:
+            data = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            data = {}
+
+        if path == "/api/connect":
+            self.apiConnect(data)
+        else:
+            self.send404()
+
+    # ── API handlers ───────────────────────────────────────────────────────
+
+    def apiVersion(self):
+        self.sendJson({
+            "version":       config.version,
+            "app":           config.appName,
+            "bleScanSeconds": config.bleScanSeconds,
+        })
 
     def apiScan(self):
-        self.sendJson(scanWifi())
+        networks = scanWifi()
+        knownSsids = getKnownWifi()
+        tagNetworks(networks, knownSsids)
+        self.sendJson(networks)
 
     def apiBle(self):
         devices = scanBle(config.bleScanSeconds)
+        knownAddrs = getKnownBle()
+        tagDevices(devices, knownAddrs)
         summary = generateBleSummary(devices)
-        self.sendJson({"devices": devices, "summary": summary})
+        self.sendJson({
+            "devices":     devices,
+            "summary":     summary,
+            "scanSeconds": config.bleScanSeconds,
+        })
 
     def apiAnomalies(self):
         networks = scanWifi()
+        knownSsids = getKnownWifi()
+        tagNetworks(networks, knownSsids)
         anomalies = detectAnomalies(networks)
         self.sendJson({"networks": networks, "anomalies": anomalies})
 
     def apiSummary(self):
         networks = scanWifi()
+        knownSsids = getKnownWifi()
+        tagNetworks(networks, knownSsids)
         anomalies = detectAnomalies(networks)
         self.sendJson({"summary": generateSummary(networks, anomalies)})
 
@@ -69,10 +114,24 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.sendJson({"explanation": "Tell me which network — example: explain MyWiFi"})
             return
         networks = scanWifi()
+        knownSsids = getKnownWifi()
+        tagNetworks(networks, knownSsids)
         anomalies = detectAnomalies(networks)
         self.sendJson({"explanation": explainNetwork(ssid, networks, anomalies)})
 
-    # help stuff
+    def apiTraffic(self):
+        self.sendJson(getTrafficStats())
+
+    def apiConnect(self, data):
+        ssid     = (data.get("ssid") or "").strip()
+        password = (data.get("password") or "").strip() or None
+        if not ssid:
+            self.sendJson({"success": False, "message": "No SSID provided."})
+            return
+        success, message = connectWifi(ssid, password)
+        self.sendJson({"success": success, "message": message})
+
+    # ── Static file serving ────────────────────────────────────────────────
 
     def serveFile(self, filename, contentType):
         filepath = os.path.join(staticDir, filename)

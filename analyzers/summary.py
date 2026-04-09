@@ -2,24 +2,38 @@
 def generateSummary(networks, anomalies):
     total = len(networks)
     if total == 0:
-        return "No joy..didn\'t find any WiFi networks nearby."
+        return "No joy. No Wi-Fi networks found nearby."
 
     openCount = sum(1 for n in networks if n["security"].lower() == "open")
     hiddenCount = sum(1 for n in networks if not n["ssid"])
     securedCount = total - openCount
     wpsCount = sum(1 for n in networks if n.get("wps"))
 
+    knownCount   = sum(1 for n in networks if n.get("tag") == "known")
+    hotspotCount = sum(1 for n in networks if n.get("tag") == "hotspot")
+    newCount     = sum(1 for n in networks if n.get("tag") == "new")
+
     lines = []
-    lines.append(f"found {total} WiFi networks nearby.")
+    lines.append(f"Found {total} Wi-Fi networks nearby.")
     lines.append(f"  {securedCount} secured, {openCount} open, {hiddenCount} hidden.")
 
+    tagParts = []
+    if knownCount:
+        tagParts.append(f"{knownCount} known")
+    if hotspotCount:
+        tagParts.append(f"{hotspotCount} hotspot(s)")
+    if newCount:
+        tagParts.append(f"{newCount} new")
+    if tagParts:
+        lines.append(f"  {', '.join(tagParts)}.")
+
     if wpsCount:
-        lines.append(f"  {wpsCount} have WPS enabled")
+        lines.append(f"  {wpsCount} have WPS enabled.")
 
     if anomalies:
         highCount = sum(1 for a in anomalies if a["severity"] == "high")
-        medCount = sum(1 for a in anomalies if a["severity"] == "medium")
-        lowCount = sum(1 for a in anomalies if a["severity"] == "low")
+        medCount  = sum(1 for a in anomalies if a["severity"] == "medium")
+        lowCount  = sum(1 for a in anomalies if a["severity"] == "low")
 
         lines.append(f"\n  {len(anomalies)} things look off:")
         if highCount:
@@ -44,16 +58,23 @@ def generateBleSummary(devices):
     if total == 0:
         return "No Bluetooth devices found."
 
-    named = [d for d in devices if d["name"] != "(unknown)"]
+    named   = [d for d in devices if d["name"] != "(unknown)"]
     unnamed = total - len(named)
 
+    knownCount = sum(1 for d in devices if d.get("tag") == "known")
+    newCount   = total - knownCount
+
     lines = []
-    lines.append(f"Found {total} Bluetooth devices.")
+    lines.append(f"Found {total} Bluetooth device(s).")
+
+    if knownCount:
+        lines.append(f"  {knownCount} previously seen, {newCount} new.")
 
     if named:
         lines.append(f"  {len(named)} identified themselves:")
         for d in named:
-            lines.append(f"    {d['name']}  ({d['address']})")
+            tag = f'  [{d.get("tag", "new").upper()}]' if d.get("tag") else ""
+            lines.append(f"    {d['name']}  ({d['address']}){tag}")
 
     if unnamed:
         lines.append(f"  {unnamed} are unnamed or hiding...")
@@ -76,6 +97,8 @@ def explainNetwork(ssid, networks, anomalies):
         lines.append(f'  Security: {net["security"]}')
         if net.get("wps"):
             lines.append(f'  WPS:      Enabled (known vulnerability)')
+        if net.get("tag"):
+            lines.append(f'  Status:   {net["tag"].upper()}')
 
     related = [a for a in anomalies if a["ssid"].lower() == ssid.lower()]
     if related:
